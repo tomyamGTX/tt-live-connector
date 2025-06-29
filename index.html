@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            -webkit-app-region: drag;
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
+        }
+
+        #container {
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+            max-width: 700px;
+            min-height: 700px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        #liveStatus {
+            text-align: center;
+            font-size: 18px;
+            opacity: 0.6;
+        }
+
+        #comment {
+            font-size: 22px;
+            text-align: center;
+            padding: 10px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            transition: opacity 0.3s;
+        }
+
+        #comments {
+            max-height: 300px;
+            /* ✅ Set height */
+            overflow-y: auto;
+            /* ✅ Enable vertical scrolling */
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-right: 6px;
+            /* space for scrollbar */
+        }
+
+        #comments::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #comments::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .comment,
+        .gift {
+            white-space: normal;
+            /* Allow line wrapping */
+            overflow: visible;
+            /* Let content overflow naturally */
+            text-overflow: unset;
+            /* Disable ellipsis */
+            word-break: break-word;
+            /* Break long words if needed */
+        }
+
+
+        .comment {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 6px 10px;
+            border-radius: 6px;
+        }
+
+        .gift {
+            color: gold;
+            font-weight: bold;
+            background: rgba(255, 215, 0, 0.15);
+            padding: 6px 10px;
+            border: 1px solid gold;
+            border-radius: 6px;
+            animation: popIn 0.3s ease-in-out;
+        }
+
+        #giftThankYou {
+            color: gold;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+        }
+
+        #giftVideo {
+            display: none;
+            width: 100%;
+            height: auto;
+            max-width: 800px;
+            border-radius: 12px;
+            margin-top: 10px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        @keyframes popIn {
+            0% {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in forwards;
+        }
+
+        .fade-out {
+            animation: fadeOut 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <div id="liveStatus">👀 Menunggu komen...</div>
+        <div id="comment">...</div>
+
+        <div id="comments"></div>
+
+        <div id="giftThankYou">🎁 Terima kasih!</div>
+
+        <video id="giftVideo" autoplay playsinline controls muted></video>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+
+</html>

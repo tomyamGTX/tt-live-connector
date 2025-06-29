@@ -1,0 +1,12 @@
+{
+  "name": "tt-live-connector",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^37.1.0",
+    "say": "^0.16.0"
+  }
+}
