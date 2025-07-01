@@ -1,181 +1,171 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8" />
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8" />
+  <title>Live Overlay</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-        html,
-        body {
-            background: transparent;
-            font-family: 'Segoe UI', sans-serif;
-            overflow: hidden;
-            -webkit-app-region: drag;
-        }
+    html, body {
+      background: transparent;
+      font-family: 'Segoe UI', sans-serif;
+      overflow: hidden;
+      -webkit-app-region: drag;
+    }
 
-        #container {
-            background: rgba(0, 0, 0, 0.6);
-            border-radius: 12px;
-            padding: 12px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            width: 100%;
-            height: 100%;
-            max-width: none;
-            min-height: none;
-            /* 🔧 allows idle mode to shrink */
-            transition: all 0.4s ease;
-            overflow: hidden;
-        }
+    #container {
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+      height: 100%;
+      transition: all 0.4s ease;
+      overflow: hidden;
+    }
 
-        #container.expanded {
-            max-width: 1000px;
-            min-height: 900px;
-        }
+    #container.expanded {
+      max-width: 1000px;
+      min-height: 900px;
+    }
 
-        #liveStatus {
-            text-align: center;
-            font-size: 16px;
-            opacity: 0.6;
-            line-height: 1;
-        }
+    #liveStatus,
+    #viewerStatus {
+      text-align: center;
+      font-size: 16px;
+      line-height: 1.2;
+      opacity: 0.6;
+    }
 
-        #comment {
-            font-size: 20px;
-            text-align: center;
-            padding: 8px 12px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.05);
-            transition: opacity 0.3s ease;
-        }
+    #viewerStatus {
+      font-size: 18px;
+      opacity: 0.5;
+    }
 
-        #comments {
-            max-height: 300px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            padding-right: 6px;
-            transition: opacity 0.3s ease;
-        }
+    #comment {
+      font-size: 20px;
+      text-align: center;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      transition: opacity 0.3s ease;
+    }
 
-        #comments::-webkit-scrollbar {
-            width: 6px;
-        }
+    #comments {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 300px;
+      overflow-y: auto;
+      padding-right: 6px;
+      transition: opacity 0.3s ease;
+    }
 
-        #comments::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 4px;
-        }
+    #comments::-webkit-scrollbar {
+      width: 6px;
+    }
 
-        .comment,
-        .gift {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 6px 10px;
-            border-radius: 6px;
-            word-break: break-word;
-            white-space: normal;
-            overflow-wrap: break-word;
-        }
+    #comments::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
 
-        .gift {
-            color: gold;
-            font-weight: bold;
-            background: rgba(255, 215, 0, 0.15);
-            border: 1px solid gold;
-            animation: popIn 0.3s ease-in-out;
-        }
+    .comment,
+    .gift {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 6px 10px;
+      border-radius: 6px;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
 
-        #giftThankYou {
-            color: gold;
-            font-size: 18px;
-            font-weight: bold;
-            text-align: center;
-            display: none;
-        }
+    .gift {
+      color: gold;
+      font-weight: bold;
+      background: rgba(255, 215, 0, 0.15);
+      border: 1px solid gold;
+      animation: popIn 0.3s ease-in-out;
+    }
 
-        #giftVideo {
-            display: none;
-            width: 100%;
-            height: auto;
-            max-width: 100%;
-            max-height: 100%;
-            border-radius: 12px;
-            margin-top: 10px;
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-        }
+    #giftThankYou {
+      color: gold;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+      display: none;
+    }
 
-        #viewerStatus {
-            text-align: center;
-            font-size: 18px;
-            opacity: 0.5;
-        }
+    #giftVideo {
+      display: none;
+      width: 100%;
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 12px;
+      margin-top: 10px;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    }
 
+    /* Animations */
+    .fade-in {
+      animation: fadeIn 0.5s ease-in forwards;
+    }
 
-        .fade-in {
-            animation: fadeIn 0.5s ease-in forwards;
-        }
+    .fade-out {
+      animation: fadeOut 0.5s ease-out forwards;
+    }
 
-        .fade-out {
-            animation: fadeOut 0.5s ease-out forwards;
-        }
+    @keyframes popIn {
+      0% {
+        transform: scale(0.8);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
 
-        @keyframes popIn {
-            0% {
-                transform: scale(0.8);
-                opacity: 0;
-            }
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
 
-            100% {
-                transform: scale(1);
-                opacity: 1;
-            }
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeOut {
-            from {
-                opacity: 1;
-            }
-
-            to {
-                opacity: 0;
-            }
-        }
-    </style>
-
+    @keyframes fadeOut {
+      from {
+        opacity: 1;
+      }
+      to {
+        opacity: 0;
+      }
+    }
+  </style>
 </head>
 
 <body>
-    <div id="container">
-        <div id="liveStatus">🟢 Live sekarang — 00:00:00</div>
-        <div id="viewerStatus">👀 0 sedang menonton</div>
-        <div id="comment">...</div>
-        <div id="comments"></div>
-        <div id="giftThankYou">🎁 Terima kasih!</div>
-        <video id="giftVideo" autoplay playsinline controls></video>
-    </div>
+  <div id="container">
+    <div id="liveStatus">🟢 Live sekarang — 00:00:00</div>
+    <div id="viewerStatus">👀 0 sedang menonton</div>
+    <div id="comment">...</div>
+    <div id="comments"></div>
+    <div id="giftThankYou">🎁 Terima kasih!</div>
+    <video id="giftVideo" autoplay playsinline></video>
+  </div>
 
-    <script src="renderer.js"></script>
+  <script src="renderer.js"></script>
 </body>
-
 </html>
