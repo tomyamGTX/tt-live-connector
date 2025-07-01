@@ -1,10 +1,13 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
-const { attachListener } = require('./comment-listener');
+const path = require('path');
 
-let win;
+let overlayWindow;
+let promptWindow;
+let tiktokUsername = null;
 
-function createWindow() {
-    win = new BrowserWindow({
+// ✅ Create the transparent overlay window
+function createOverlayWindow() {
+    overlayWindow = new BrowserWindow({
         width: 500,
         height: 430,
         x: 15,
@@ -18,27 +21,55 @@ function createWindow() {
         hasShadow: false,
         webPreferences: {
             nodeIntegration: true,
-            contextIsolation: false
-        }
+            contextIsolation: false,
+        },
     });
 
-    win.setAlwaysOnTop(true, 'screen-saver');
-    win.loadFile('index.html');
-    win.setIgnoreMouseEvents(true, { forward: true });
-    win.webContents.once('did-finish-load', () => {
-        attachListener(win);
+    overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+    overlayWindow.loadFile('index.html');
+    overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+
+    overlayWindow.webContents.once('did-finish-load', () => {
+        const { attachListener } = require('./comment-listener');
+        attachListener(overlayWindow, tiktokUsername);
     });
 }
 
-app.whenReady().then(createWindow);
+// ✅ Create a prompt window for TikTok username
+function createPromptWindow() {
+    promptWindow = new BrowserWindow({
+        width: 400,
+        height: 400,
+        resizable: false,
+        frame: true,
+        alwaysOnTop: true,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false,
+        },
+    });
 
-// ✅ Resize when triggered by renderer
+    promptWindow.loadFile('username-prompt.html');
+}
+
+// ✅ Launch prompt first
+app.whenReady().then(() => {
+    createPromptWindow();
+});
+
+// ✅ Receive TikTok username from prompt
+ipcMain.on('username-submitted', (event, username) => {
+    tiktokUsername = username;
+    if (promptWindow) promptWindow.close();
+    createOverlayWindow();
+});
+
+// ✅ Resize window from renderer
 ipcMain.on('resize-window-to-video', (event, width, height) => {
     const win = BrowserWindow.getFocusedWindow();
     if (win) {
         const w = parseInt(width, 10);
         const h = parseInt(height, 10);
-
         if (!isNaN(w) && !isNaN(h)) {
             win.setSize(w, h);
         } else {
@@ -48,9 +79,8 @@ ipcMain.on('resize-window-to-video', (event, width, height) => {
 });
 
 ipcMain.on('toggle-ignore-mouse', (event, shouldIgnore) => {
-  const win = BrowserWindow.getFocusedWindow();
-  if (win) {
-    win.setIgnoreMouseEvents(shouldIgnore, { forward: true });
-  }
+    const win = BrowserWindow.getFocusedWindow();
+    if (win) {
+        win.setIgnoreMouseEvents(shouldIgnore, { forward: true });
+    }
 });
-

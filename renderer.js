@@ -156,7 +156,7 @@ function processGiftQueue() {
   const file = giftMap[data.giftName] || 'default.mp4';
   video.src = `gift-videos/${file}`;
   video.style.display = 'block';
-  video.muted = true; // ensure autoplay works
+  video.muted = false; // ensure autoplay works
   video.currentTime = 0;
 
   video.onerror = () => {

@@ -1,21 +1,18 @@
 const { TikTokLiveConnection } = require('tiktok-live-connector');
-const { BrowserWindow } = require('electron');
+const { BrowserWindow, app } = require('electron');
 const say = require('say');
 
-const username = 'hachimy99';
-const connection = new TikTokLiveConnection(username);
-
 let mainWindow = null;
+let connection = null;
 const ttsQueue = [];
 let isSpeaking = false;
 const spokenMessages = new Set();
 const MAX_MEMORY = 100;
 
-// Random TTS voice pool
 const availableVoices = [
-    "Microsoft David Desktop",   // English
-    "Microsoft Zira Desktop",    // English (female)
-    "Microsoft Haruka Desktop"   // Japanese
+    "Microsoft David Desktop",
+    "Microsoft Zira Desktop",
+    "Microsoft Haruka Desktop"
 ];
 
 function getRandomVoice() {
@@ -29,26 +26,27 @@ function speakNext() {
     isSpeaking = true;
     const { comment } = ttsQueue.shift();
     const voice = getRandomVoice();
-    console.log(`🔊 Speaking: ${comment} with ${voice}`);
 
+    console.log(`🔊 Speaking: ${comment} with ${voice}`);
     say.speak(comment, voice, 0.9, (err) => {
         isSpeaking = false;
         if (err) {
             console.error('TTS Error:', err);
         }
-        setTimeout(speakNext, 250); // Smooth delay before next TTS
+        setTimeout(speakNext, 250);
     });
 }
 
-function attachListener(win) {
+function attachListener(win, username) {
     mainWindow = win;
+    connection = new TikTokLiveConnection(username);
 
     async function tryConnect() {
         try {
             await connection.connect();
             console.log(`✅ Connected to TikTok Live for @${username}`);
             if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('live-started'); // ✅ Notify renderer
+                mainWindow.webContents.send('live-started');
             }
         } catch (err) {
             console.error("❌ TikTok not live. Retrying in 30s...");
@@ -58,7 +56,6 @@ function attachListener(win) {
 
     tryConnect();
 
-    // Viewer count updates
     connection.on('roomUser', (data) => {
         const viewerCount = data.viewerCount || 0;
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -66,7 +63,6 @@ function attachListener(win) {
         }
     });
 
-    // Chat message listener
     connection.on('chat', (msg) => {
         const user = msg.user || msg;
         const nickname = user.nickname || "Seseorang";
@@ -75,7 +71,6 @@ function attachListener(win) {
         if (comment.length === 0 || comment.length > 300) return;
 
         const fullMessage = `${nickname}: ${comment}`;
-
         if (spokenMessages.has(fullMessage)) return;
 
         spokenMessages.add(fullMessage);
@@ -85,7 +80,6 @@ function attachListener(win) {
         }
 
         console.log(`💬 ${nickname}: ${comment}`);
-
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('new-comment', { nickname, comment });
         }
@@ -94,7 +88,6 @@ function attachListener(win) {
         speakNext();
     });
 
-    // Gift event
     connection.on('gift', (data) => {
         const user = data.user || {};
         const nickname = user.nickname || "Seseorang";
@@ -102,13 +95,8 @@ function attachListener(win) {
         const repeatCount = data.repeatCount || 1;
 
         console.log(`🎁 ${nickname} sent ${giftName} x${repeatCount}`);
-
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('new-gift', {
-                nickname,
-                giftName,
-                repeatCount
-            });
+            mainWindow.webContents.send('new-gift', { nickname, giftName, repeatCount });
         }
 
         const thankYouMsg = `Terima kasih ${nickname} menghantar ${giftName} sebanyak ${repeatCount} kali`;
