@@ -1,25 +1,77 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Enter TikTok Username</title>
+  <meta charset="UTF-8">
+  <title>Masukkan Username TikTok</title>
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 40px; }
-    input { padding: 10px; font-size: 18px; width: 80%; margin-bottom: 10px; }
-    button { padding: 10px 20px; font-size: 18px; }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #111;
+      color: #fff;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .username-box {
+      background: #1c1c1c;
+      padding: 32px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      text-align: center;
+      width: 300px;
+    }
+    .username-box h1 {
+      margin-bottom: 16px;
+      font-size: 20px;
+      color: #f0f0f0;
+    }
+    .username-box input {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      margin-bottom: 20px;
+      background: #2a2a2a;
+      color: #fff;
+    }
+    .username-box button {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      background: #00b894;
+      border: none;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .username-box button:hover {
+      background: #00a383;
+    }
   </style>
 </head>
 <body>
-  <h2>Enter TikTok Username</h2>
-  <input id="username" placeholder="@yourusername" />
-  <br />
-  <button onclick="submit()">Continue</button>
+  <div class="username-box">
+    <h1>Masukkan Username TikTok</h1>
+    <input id="usernameInput" type="text" placeholder="contoh: hachimy99">
+    <button onclick="submitUsername()">Mulakan</button>
+  </div>
 
   <script>
     const { ipcRenderer } = require('electron');
-    function submit() {
-      const value = document.getElementById('username').value.trim();
-      if (value) ipcRenderer.send('username-submitted', value);
+    function submitUsername() {
+      const username = document.getElementById('usernameInput').value.trim();
+      if (username) {
+        ipcRenderer.send('username-submitted', username);
+      } else {
+        alert("Sila masukkan username.");
+      }
     }
   </script>
 </body>

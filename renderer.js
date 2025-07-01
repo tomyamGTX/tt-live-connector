@@ -195,5 +195,16 @@ function cleanupAfterVideo() {
   ipcRenderer.send('resize-window-to-video', 500, uiWidth);
   processGiftQueue();
 }
+ipcRenderer.on('live-ended', () => {
+  console.log("Live ended. Fading out...");
 
+  // Apply a fade-out effect to the body
+  document.body.style.transition = 'opacity 1s ease';
+  document.body.style.opacity = '0';
+
+  // Wait for the fade to finish, then tell main to quit
+  setTimeout(() => {
+    ipcRenderer.send('quit-app');
+  }, 1000); // match transition duration
+});
 console.log('👋 Renderer loaded');

@@ -5,8 +5,25 @@ let overlayWindow;
 let promptWindow;
 let tiktokUsername = null;
 
-// ✅ Create the transparent overlay window
-function createOverlayWindow() {
+// ✅ Step 1: Prompt window for username
+function createPromptWindow() {
+    promptWindow = new BrowserWindow({
+        width: 400,
+        height: 300,
+        resizable: false,
+        frame: false,
+        alwaysOnTop: true,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
+        }
+    });
+
+    promptWindow.loadFile('username-prompt.html');
+}
+
+// ✅ Step 2: Overlay window after username is submitted
+function createOverlayWindow(username) {
     overlayWindow = new BrowserWindow({
         width: 500,
         height: 430,
@@ -21,8 +38,8 @@ function createOverlayWindow() {
         hasShadow: false,
         webPreferences: {
             nodeIntegration: true,
-            contextIsolation: false,
-        },
+            contextIsolation: false
+        }
     });
 
     overlayWindow.setAlwaysOnTop(true, 'screen-saver');
@@ -31,40 +48,23 @@ function createOverlayWindow() {
 
     overlayWindow.webContents.once('did-finish-load', () => {
         const { attachListener } = require('./comment-listener');
-        attachListener(overlayWindow, tiktokUsername);
+        attachListener(overlayWindow, username);
     });
 }
 
-// ✅ Create a prompt window for TikTok username
-function createPromptWindow() {
-    promptWindow = new BrowserWindow({
-        width: 400,
-        height: 400,
-        resizable: false,
-        frame: true,
-        alwaysOnTop: true,
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
-        },
-    });
-
-    promptWindow.loadFile('username-prompt.html');
-}
-
-// ✅ Launch prompt first
+// ✅ App start
 app.whenReady().then(() => {
     createPromptWindow();
 });
 
-// ✅ Receive TikTok username from prompt
+// ✅ Handle username from renderer
 ipcMain.on('username-submitted', (event, username) => {
     tiktokUsername = username;
     if (promptWindow) promptWindow.close();
-    createOverlayWindow();
+    createOverlayWindow(username);
 });
 
-// ✅ Resize window from renderer
+// ✅ Resize support
 ipcMain.on('resize-window-to-video', (event, width, height) => {
     const win = BrowserWindow.getFocusedWindow();
     if (win) {
@@ -78,9 +78,15 @@ ipcMain.on('resize-window-to-video', (event, width, height) => {
     }
 });
 
+// ✅ Toggle click-through
 ipcMain.on('toggle-ignore-mouse', (event, shouldIgnore) => {
     const win = BrowserWindow.getFocusedWindow();
     if (win) {
         win.setIgnoreMouseEvents(shouldIgnore, { forward: true });
     }
+});
+
+// ✅ Quit signal from listener
+ipcMain.on('quit-app', () => {
+    app.quit();
 });
