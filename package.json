@@ -24,10 +24,11 @@
     },
     "files": [
       "main.js",
+      "comment-listener.js",
       "index.html",
-      "gift-videos/**/*",
-      "preload.js",
       "renderer.js",
+      "preload.js",
+      "gift-videos/**/*",
       "icon.ico"
     ],
     "win": {
