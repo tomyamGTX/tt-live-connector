@@ -10,11 +10,12 @@
     "build": "electron-builder"
   },
   "dependencies": {
-    "say": "^0.16.0"
+    "say": "^0.16.0",
+    "tiktok-live-connector": "^2.0.6-beta2"
   },
   "devDependencies": {
-    "electron-builder": "^24.6.0",
-    "electron": "^37.1.0"
+    "electron": "^37.1.0",
+    "electron-builder": "^24.6.0"
   },
   "build": {
     "appId": "com.hachimy.ttliveconnector",
