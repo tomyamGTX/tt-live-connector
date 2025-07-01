@@ -1,61 +1,74 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <meta charset="UTF-8" />
     <style>
-        html,
-        body {
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
             background: transparent;
-            -webkit-app-region: drag;
             font-family: 'Segoe UI', sans-serif;
             overflow: hidden;
+            -webkit-app-region: drag;
         }
 
         #container {
             background: rgba(0, 0, 0, 0.6);
             border-radius: 12px;
-            padding: 16px;
+            padding: 12px;
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
-            max-width: 700px;
-            min-height: 700px;
             color: white;
             display: flex;
             flex-direction: column;
             gap: 10px;
+            width: 100%;
+            height: 100%;
+            max-width: none;
+            min-height: none;
+            /* 🔧 allows idle mode to shrink */
+            transition: all 0.4s ease;
+            overflow: hidden;
+        }
+
+        #container.expanded {
+            max-width: 1000px;
+            min-height: 900px;
         }
 
         #liveStatus {
             text-align: center;
-            font-size: 18px;
+            font-size: 16px;
             opacity: 0.6;
+            line-height: 1;
         }
 
         #comment {
-            font-size: 22px;
+            font-size: 20px;
             text-align: center;
-            padding: 10px;
-            border-radius: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
             background: rgba(255, 255, 255, 0.05);
-            transition: opacity 0.3s;
+            transition: opacity 0.3s ease;
         }
 
         #comments {
             max-height: 300px;
-            /* ✅ Set height */
             overflow-y: auto;
-            /* ✅ Enable vertical scrolling */
             display: flex;
             flex-direction: column;
             gap: 6px;
             padding-right: 6px;
-            /* space for scrollbar */
+            transition: opacity 0.3s ease;
         }
 
         #comments::-webkit-scrollbar {
-            width: 8px;
+            width: 6px;
         }
 
         #comments::-webkit-scrollbar-thumb {
@@ -65,36 +78,25 @@
 
         .comment,
         .gift {
-            white-space: normal;
-            /* Allow line wrapping */
-            overflow: visible;
-            /* Let content overflow naturally */
-            text-overflow: unset;
-            /* Disable ellipsis */
-            word-break: break-word;
-            /* Break long words if needed */
-        }
-
-
-        .comment {
             background: rgba(255, 255, 255, 0.05);
             padding: 6px 10px;
             border-radius: 6px;
+            word-break: break-word;
+            white-space: normal;
+            overflow-wrap: break-word;
         }
 
         .gift {
             color: gold;
             font-weight: bold;
             background: rgba(255, 215, 0, 0.15);
-            padding: 6px 10px;
             border: 1px solid gold;
-            border-radius: 6px;
             animation: popIn 0.3s ease-in-out;
         }
 
         #giftThankYou {
             color: gold;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
             text-align: center;
             display: none;
@@ -104,10 +106,26 @@
             display: none;
             width: 100%;
             height: auto;
-            max-width: 800px;
+            max-width: 100%;
+            max-height: 100%;
             border-radius: 12px;
             margin-top: 10px;
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        #viewerStatus {
+            text-align: center;
+            font-size: 18px;
+            opacity: 0.5;
+        }
+
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in forwards;
+        }
+
+        .fade-out {
+            animation: fadeOut 0.5s ease-out forwards;
         }
 
         @keyframes popIn {
@@ -120,14 +138,6 @@
                 transform: scale(1);
                 opacity: 1;
             }
-        }
-
-        .fade-in {
-            animation: fadeIn 0.5s ease-in forwards;
-        }
-
-        .fade-out {
-            animation: fadeOut 0.5s ease-out forwards;
         }
 
         @keyframes fadeIn {
@@ -152,18 +162,17 @@
             }
         }
     </style>
+
 </head>
 
 <body>
     <div id="container">
-        <div id="liveStatus">👀 Menunggu komen...</div>
+        <div id="liveStatus">🟢 Live sekarang — 00:00:00</div>
+        <div id="viewerStatus">👀 0 sedang menonton</div>
         <div id="comment">...</div>
-
         <div id="comments"></div>
-
         <div id="giftThankYou">🎁 Terima kasih!</div>
-
-        <video id="giftVideo" autoplay playsinline controls muted></video>
+        <video id="giftVideo" autoplay playsinline controls></video>
     </div>
 
     <script src="renderer.js"></script>

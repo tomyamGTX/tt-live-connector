@@ -115,6 +115,16 @@ function attachListener(win) {
         ttsQueue.push({ comment: thankYouMsg });
         speakNext();
     });
+
+    connection.on('liveEnd', handleLiveEnd);
+    connection.on('streamEnd', handleLiveEnd);
+
+    function handleLiveEnd() {
+        console.log("🔴 Live ended");
+        setTimeout(() => {
+            app.quit();
+        }, 2000);
+    }
 }
 
 module.exports = { attachListener };
