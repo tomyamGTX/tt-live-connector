@@ -1,12 +1,44 @@
 {
   "name": "tt-live-connector",
   "version": "1.0.0",
+  "description": "TikTok Live Connector with gift video playback",
   "main": "main.js",
+  "author": "Hachimy",
+  "license": "MIT",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build": "electron-builder"
   },
   "dependencies": {
-    "electron": "^37.1.0",
     "say": "^0.16.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.6.0",
+    "electron": "^37.1.0"
+  },
+  "build": {
+    "appId": "com.hachimy.ttliveconnector",
+    "productName": "TT Live Connector",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "gift-videos/**/*",
+      "preload.js",
+      "renderer.js",
+      "icon.ico"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    },
+    "mac": {
+      "target": []
+    },
+    "linux": {
+      "target": []
+    }
   }
 }

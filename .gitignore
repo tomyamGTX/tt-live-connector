@@ -1,2 +1,34 @@
-gift-videos/
+# Node modules
 node_modules/
+
+# Output from builds
+/dist/
+/out/
+/build/
+
+# Electron builder cache
+.local/
+.cache/
+electron-builder.yaml
+builder-effective-config.yaml
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Windows specific
+*.exe
+*.ico
+
+# VSCode config
+.vscode/
+
+# ENV files (optional)
+.env
+
+gift-videos/
