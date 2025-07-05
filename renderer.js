@@ -43,10 +43,10 @@ function exitIdleMode() {
   commentBox.style.opacity = '1';
   commentList.style.opacity = '1';
 
-  container.style.maxWidth = '500px';
+  container.style.maxWidth = '400px';
   container.style.minHeight = `${uiWidth}px`;
 
-  ipcRenderer.send('resize-window-to-video', 500, uiWidth);
+  ipcRenderer.send('resize-window-to-video', 400, uiWidth);
 }
 
 function resetIdleTimer() {
@@ -165,7 +165,7 @@ function processGiftQueue() {
   };
 
   video.onloadedmetadata = () => {
-    const width = video.videoWidth || 600;
+    const width = video.videoWidth || 400;
     const height = video.videoHeight || 400;
 
     container.style.maxWidth = `${width}px`;
