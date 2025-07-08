@@ -31,7 +31,8 @@
       "preload.js",
       "gift-videos/**/*",
       "icon.ico",
-      "username-prompt.html"
+      "username-prompt.html",
+      "preload.js"
     ],
     "win": {
       "target": "nsis",

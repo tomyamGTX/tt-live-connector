@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ms">
+
 <head>
   <meta charset="UTF-8">
   <title>Masukkan Username TikTok</title>
@@ -7,6 +8,7 @@
     * {
       box-sizing: border-box;
     }
+
     body {
       margin: 0;
       font-family: 'Segoe UI', sans-serif;
@@ -17,19 +19,22 @@
       align-items: center;
       justify-content: center;
     }
+
     .username-box {
       background: #1c1c1c;
       padding: 32px;
       border-radius: 12px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
       text-align: center;
       width: 300px;
     }
+
     .username-box h1 {
       margin-bottom: 16px;
       font-size: 20px;
       color: #f0f0f0;
     }
+
     .username-box input {
       width: 100%;
       padding: 10px;
@@ -40,6 +45,7 @@
       background: #2a2a2a;
       color: #fff;
     }
+
     .username-box button {
       width: 100%;
       padding: 10px;
@@ -51,28 +57,41 @@
       cursor: pointer;
       transition: background 0.3s;
     }
+
     .username-box button:hover {
       background: #00a383;
     }
   </style>
 </head>
+
 <body>
   <div class="username-box">
     <h1>Masukkan Username TikTok</h1>
     <input id="usernameInput" type="text" placeholder="contoh: hachimy99">
-    <button onclick="submitUsername()">Mulakan</button>
+    <button id="submitBtn">Mulakan</button>
   </div>
 
   <script>
-    const { ipcRenderer } = require('electron');
+    const input = document.getElementById('usernameInput');
+    const button = document.getElementById('submitBtn');
+
     function submitUsername() {
-      const username = document.getElementById('usernameInput').value.trim();
+      const username = input.value.trim();
       if (username) {
-        ipcRenderer.send('username-submitted', username);
+        window.electronAPI.submitUsername(username);
       } else {
         alert("Sila masukkan username.");
       }
     }
+
+    button.addEventListener('click', submitUsername);
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        submitUsername();
+      }
+    });
   </script>
 </body>
+
 </html>

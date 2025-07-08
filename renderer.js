@@ -1,5 +1,3 @@
-const { ipcRenderer } = require('electron');
-
 const commentBox = document.getElementById('comment');
 const commentList = document.getElementById('comments');
 const giftMsg = document.getElementById('giftThankYou');
@@ -17,10 +15,12 @@ const giftVideoQueue = [];
 const uiWidth = 430;
 let isVideoPlaying = false;
 let isIdle = false;
+let isProcessing = false;
 const idleTimeoutDuration = 8000;
 let idleTimeout;
+let lastTriggeredByDev = null;
+let lastGift = null;
 
-// 💤 IDLE HANDLING
 function enterIdleMode() {
   if (isIdle || isVideoPlaying) return;
   isIdle = true;
@@ -29,11 +29,11 @@ function enterIdleMode() {
   commentList.style.opacity = '0';
 
   container.classList.remove('expanded');
-  container.style.maxWidth = '300px';
-  container.style.maxHeight = '80px';
-  container.style.minHeight = '80px';
+  container.style.maxWidth = '350px';
+  container.style.maxHeight = '120px';
+  container.style.minHeight = '120px';
 
-  ipcRenderer.send('resize-window-to-video', 300, 100);
+  window.electronAPI.resizeWindow(300, 100);
 }
 
 function exitIdleMode() {
@@ -43,21 +43,19 @@ function exitIdleMode() {
   commentBox.style.opacity = '1';
   commentList.style.opacity = '1';
 
-  container.style.maxWidth = '400px';
+  container.style.maxWidth = '350px';
   container.style.minHeight = `${uiWidth}px`;
 
-  ipcRenderer.send('resize-window-to-video', 400, uiWidth);
+  window.electronAPI.resizeWindow(400, uiWidth);
 }
 
 function resetIdleTimer() {
   clearTimeout(idleTimeout);
-  exitIdleMode(); // Always exit idle mode first
-
+  exitIdleMode();
   if (isVideoPlaying) return;
   idleTimeout = setTimeout(enterIdleMode, idleTimeoutDuration);
 }
 
-// 🔄 UTILITIES
 function formatDuration(seconds) {
   const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
   const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
@@ -69,66 +67,13 @@ function truncateNickname(nickname, maxLength = 25) {
   return nickname.length > maxLength ? nickname.slice(0, maxLength) + '…' : nickname;
 }
 
-// 🔔 EVENTS
-ipcRenderer.on('live-started', () => {
-  liveStartTime = Date.now();
-  clearInterval(liveTimerInterval);
-
-  liveTimerInterval = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - liveStartTime) / 1000);
-    liveStatus.textContent = `🟢 Live sekarang — ${formatDuration(elapsed)}`;
-  }, 1000);
-});
-
-ipcRenderer.on('viewer-count', (_, viewerCount) => {
-  latestViewerCount = viewerCount;
-  viewerStatus.textContent = `👀 ${viewerCount} sedang menonton`;
-
-  if (!isIdle) resetIdleTimer();
-});
-
-ipcRenderer.on('new-comment', (_, data) => {
-  lastCommentTime = Date.now();
-  resetIdleTimer();
-
-  const div = document.createElement('div');
-  div.className = 'comment';
-  const shortName = truncateNickname(data.nickname);
-  div.textContent = `${shortName}: ${data.comment}`;
-  div.title = `${data.nickname}: ${data.comment}`;
-  commentList.appendChild(div);
-
-  while (commentList.children.length > 6) {
-    commentList.removeChild(commentList.firstChild);
-  }
-
-  commentList.scrollTop = commentList.scrollHeight;
-  commentBox.textContent = `${shortName}: ${data.comment}`;
-  commentBox.style.opacity = 1;
-
-  // 🧪 Simulate gift on keyword "dev"
-  if (data.comment.toLowerCase().includes('dev')) {
-    giftVideoQueue.push({
-      nickname: data.nickname,
-      giftName: 'TikTok',
-      repeatCount: 1,
-    });
-    processGiftQueue();
-  }
-});
-
-ipcRenderer.on('new-gift', (_, data) => {
-  giftVideoQueue.push(data);
-  processGiftQueue();
-});
-
-// 🎁 VIDEO GIFT PROCESSING
 function processGiftQueue() {
-  if (isVideoPlaying || giftVideoQueue.length === 0) return;
+  if (isProcessing || isVideoPlaying || giftVideoQueue.length === 0) return;
 
+  isProcessing = true;
   const data = giftVideoQueue.shift();
   isVideoPlaying = true;
-  exitIdleMode(); // prevent idle while video active
+  exitIdleMode();
 
   const text = `🎁 ${data.nickname} hantar ${data.giftName} x${data.repeatCount}`;
   const giftDiv = document.createElement('div');
@@ -145,7 +90,7 @@ function processGiftQueue() {
 
   giftMsg.innerHTML = `🎁 Terima kasih <strong>${data.nickname}</strong> atas ${data.giftName} x${data.repeatCount} 🙏`;
   giftMsg.style.display = 'block';
-  setTimeout(() => (giftMsg.style.display = 'none'), 5000);
+  setTimeout(() => (giftMsg.style.display = 'none'), 8000);
 
   const giftMap = {
     Rose: 'rose.mp4',
@@ -156,29 +101,39 @@ function processGiftQueue() {
   const file = giftMap[data.giftName] || 'default.mp4';
   video.src = `gift-videos/${file}`;
   video.style.display = 'block';
-  video.muted = false; // ensure autoplay works
+  video.muted = false;
   video.currentTime = 0;
+  video.volume = 0.5;
+
 
   video.onerror = () => {
     console.error('⚠️ Video failed to load:', video.src);
     cleanupAfterVideo();
   };
 
-  video.onloadedmetadata = () => {
+  video.onloadeddata = () => {
     const width = video.videoWidth || 400;
     const height = video.videoHeight || 400;
 
     container.style.maxWidth = `${width}px`;
     container.style.maxHeight = `${height}px`;
-    ipcRenderer.send('resize-window-to-video', width, height);
-
-    video.play().catch((err) => {
-      console.error('❌ Video play failed:', err);
+    window.electronAPI.resizeWindow(width, height);
+    video.play().then(() => {
+      videoTimeout = setTimeout(() => {
+        if (!video.paused) {
+          video.pause();
+          cleanupAfterVideo();
+        }
+      }, 19000);
+    }).catch(err => {
       cleanupAfterVideo();
     });
   };
 
-  video.onended = cleanupAfterVideo;
+  video.onended = () => {
+    clearTimeout(videoTimeout);
+    cleanupAfterVideo();
+  };
 
   commentBox.style.display = 'none';
   commentList.style.display = 'none';
@@ -188,23 +143,175 @@ function cleanupAfterVideo() {
   video.style.display = 'none';
   container.classList.remove('expanded');
   isVideoPlaying = false;
+  isProcessing = false;
 
   commentBox.style.display = 'block';
   commentList.style.display = 'flex';
 
-  ipcRenderer.send('resize-window-to-video', 500, uiWidth);
-  processGiftQueue();
+  window.electronAPI.resizeWindow(500, uiWidth);
+  processGiftQueue(); // Try next gift if any
 }
-ipcRenderer.on('live-ended', () => {
-  console.log("Live ended. Fading out...");
 
-  // Apply a fade-out effect to the body
-  document.body.style.transition = 'opacity 1s ease';
-  document.body.style.opacity = '0';
+document.addEventListener('DOMContentLoaded', () => {
+  window.electronAPI.onLiveStarted(() => {
+    liveStartTime = Date.now();
+    clearInterval(liveTimerInterval);
 
-  // Wait for the fade to finish, then tell main to quit
-  setTimeout(() => {
-    ipcRenderer.send('quit-app');
-  }, 1000); // match transition duration
+    liveTimerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - liveStartTime) / 1000);
+      liveStatus.textContent = `🟢 Live sekarang — ${formatDuration(elapsed)}`;
+    }, 1000);
+  });
+
+  window.electronAPI.onViewerCount(viewerCount => {
+    latestViewerCount = viewerCount;
+    viewerStatus.textContent = `👀 ${viewerCount} sedang menonton`;
+    if (!isIdle) resetIdleTimer();
+  });
+
+  window.electronAPI.onNewComment((data) => {
+    lastCommentTime = Date.now();
+    resetIdleTimer();
+
+    const commentText = data.comment;
+    const shortName = truncateNickname(data.nickname);
+    const fullDisplayText = `${shortName}: ${commentText}`;
+
+    const div = document.createElement('div');
+    div.className = 'comment new';
+    div.title = `${data.nickname}: ${commentText}`;
+
+    // Create comment text span
+    const span = document.createElement('span');
+    span.textContent = fullDisplayText;
+    span.style.userSelect = 'text';
+    span.style.pointerEvents = 'none';
+    div.appendChild(span);
+
+    // ✅ Copy button for !play
+    if (commentText.toLowerCase().includes('!play')) {
+      const copyBtn = document.createElement('button');
+      copyBtn.textContent = '📋';
+      copyBtn.className = 'copy-btn';
+      copyBtn.title = 'Salin !play';
+
+      copyBtn.onclick = async (e) => {
+        e.stopPropagation();
+        const match = commentText.match(/!play\s+(.*)/i);
+        const playText = match ? match[1].trim() : '';
+        try {
+          await window.electronAPI.copyText(playText);
+          copyBtn.textContent = '✅';
+          setTimeout(() => {
+            copyBtn.textContent = '📋';
+          }, 1000);
+        } catch (err) {
+          console.error('❌ Clipboard error:', err);
+        }
+      };
+
+      div.appendChild(copyBtn);
+    }
+
+    // ✅ Copy button for UID (Genshin, HSR, ZZZ Asia)
+    const uidPatterns = [
+      { game: 'Genshin Impact', regex: /\b8\d{8}\b/, region: 'Asia' },
+      { game: 'Honkai: Star Rail', regex: /\b2\d{8}\b/, region: 'Asia' },
+      { game: 'Zenless Zone Zero', regex: /\b13\d{8}\b/, region: 'Asia' }, // 10-digit
+    ];
+
+    for (const { game, regex, region } of uidPatterns) {
+      const match = commentText.match(regex);
+      if (match) {
+        const uid = match[0];
+        const copyUidBtn = document.createElement('button');
+        copyUidBtn.textContent = '📋';
+        copyUidBtn.className = 'copy-btn';
+        copyUidBtn.title = `Salin UID ${game} (${region})`;
+
+        copyUidBtn.onclick = async (e) => {
+          e.stopPropagation();
+          try {
+            await window.electronAPI.copyText(uid);
+            copyUidBtn.textContent = '✅';
+            setTimeout(() => {
+              copyUidBtn.textContent = '📋';
+            }, 1000);
+          } catch (err) {
+            console.error('❌ Clipboard error:', err);
+          }
+        };
+
+        div.appendChild(copyUidBtn);
+        break; // only attach one UID button
+      }
+    }
+
+    // ✅ Append to comment list
+    commentList.appendChild(div);
+
+    // Limit to 3 comments
+    while (commentList.children.length > 3) {
+      commentList.removeChild(commentList.firstChild);
+    }
+
+    commentList.scrollTop = commentList.scrollHeight;
+
+    commentBox.textContent = fullDisplayText;
+    commentBox.style.opacity = 1;
+
+    if (commentText.toLowerCase().includes('dev')) {
+      if (lastTriggeredByDev !== data.nickname) {
+        lastTriggeredByDev = data.nickname;
+        giftVideoQueue.push({
+          nickname: data.nickname,
+          giftName: 'TikTok',
+          repeatCount: 1,
+        });
+        processGiftQueue();
+      }
+    }
+
+    setTimeout(() => div.classList.remove('new'), 400);
+  });
+
+
+
+  window.electronAPI.onNewGift(data => {
+    const gift = {
+      ...data,
+      timestamp: Date.now()
+    };
+
+    if (isDuplicateGift(gift)) {
+      console.warn('⚠️ Duplicate gift ignored:', gift);
+      return;
+    }
+
+    lastGift = gift;
+
+    giftVideoQueue.push(gift);
+    console.log('🎁 Queued gift:', gift.nickname, gift.giftName, 'x' + gift.repeatCount);
+    processGiftQueue();
+  });
+
+  window.electronAPI.onLiveEnded(() => {
+    document.body.style.transition = 'opacity 1s ease';
+    document.body.style.opacity = '0';
+    setTimeout(() => {
+      window.electronAPI.quitApp();
+    }, 1000);
+  });
+
+  console.log('👋 Renderer loaded');
 });
-console.log('👋 Renderer loaded');
+
+function isDuplicateGift(gift) {
+  return (
+    lastGift &&
+    lastGift.nickname === gift.nickname &&
+    lastGift.giftName === gift.giftName &&
+    lastGift.repeatCount === gift.repeatCount &&
+    Date.now() - lastGift.timestamp < 1000 // Within 1s
+  );
+}

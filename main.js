@@ -3,90 +3,92 @@ const path = require('path');
 
 let overlayWindow;
 let promptWindow;
-let tiktokUsername = null;
 
-// ✅ Step 1: Prompt window for username
 function createPromptWindow() {
-    promptWindow = new BrowserWindow({
-        width: 400,
-        height: 300,
-        resizable: false,
-        frame: false,
-        alwaysOnTop: true,
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false
-        }
-    });
+  promptWindow = new BrowserWindow({
+    width: 350,
+    height: 300,
+    resizable: true,
+    frame: false,
+    alwaysOnTop: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      sandbox: false // 👈 must be false for clipboard
+    }
+  });
 
-    promptWindow.loadFile('username-prompt.html');
+  promptWindow.loadFile('username-prompt.html');
 }
 
-// ✅ Step 2: Overlay window after username is submitted
 function createOverlayWindow(username) {
-    overlayWindow = new BrowserWindow({
-        width: 500,
-        height: 430,
-        x: 15,
-        y: 135,
-        frame: false,
-        transparent: true,
-        alwaysOnTop: true,
-        skipTaskbar: true,
-        resizable: false,
-        focusable: false,
-        hasShadow: false,
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false
-        }
-    });
+  overlayWindow = new BrowserWindow({
+    width: 350,
+    height: 330,
+    x: 15,
+    y: 135,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: true,
+    focusable: false,
+    hasShadow: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      sandbox: false // 👈 must be false for clipboard
+    }
+  });
 
-    overlayWindow.setAlwaysOnTop(true, 'screen-saver');
-    overlayWindow.loadFile('index.html');
-    overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+  overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+  overlayWindow.loadFile('index.html');
+  // overlayWindow.setIgnoreMouseEvents(true, { forward: true });
 
-    overlayWindow.webContents.once('did-finish-load', () => {
-        const { attachListener } = require('./comment-listener');
-        attachListener(overlayWindow, username);
-    });
+  overlayWindow.webContents.once('did-finish-load', () => {
+    try {
+      const { attachListener } = require('./comment-listener');
+      attachListener(overlayWindow, username);
+    } catch (err) {
+      console.error('❌ Failed to attach comment listener:', err);
+    }
+  });
 }
 
-// ✅ App start
 app.whenReady().then(() => {
-    createPromptWindow();
+  createPromptWindow();
 });
 
-// ✅ Handle username from renderer
 ipcMain.on('username-submitted', (event, username) => {
-    tiktokUsername = username;
-    if (promptWindow) promptWindow.close();
-    createOverlayWindow(username);
+  if (promptWindow) promptWindow.close();
+  createOverlayWindow(username);
 });
 
-// ✅ Resize support
 ipcMain.on('resize-window-to-video', (event, width, height) => {
-    const win = BrowserWindow.getFocusedWindow();
-    if (win) {
-        const w = parseInt(width, 10);
-        const h = parseInt(height, 10);
-        if (!isNaN(w) && !isNaN(h)) {
-            win.setSize(w, h);
-        } else {
-            console.warn('❌ Invalid size payload:', width, height);
-        }
+  const win = BrowserWindow.getFocusedWindow();
+  if (win) {
+    const w = parseInt(width, 10);
+    const h = parseInt(height, 10);
+    if (!isNaN(w) && !isNaN(h)) {
+      win.setSize(w, h);
+      console.log(`✅ Window resized to ${w}x${h}`);
+    } else {
+      console.warn('❌ Invalid resize payload:', width, height);
     }
+  }
 });
 
-// ✅ Toggle click-through
 ipcMain.on('toggle-ignore-mouse', (event, shouldIgnore) => {
-    const win = BrowserWindow.getFocusedWindow();
-    if (win) {
-        win.setIgnoreMouseEvents(shouldIgnore, { forward: true });
-    }
+  const win = BrowserWindow.getFocusedWindow();
+  if (win) {
+    win.setIgnoreMouseEvents(shouldIgnore, { forward: true });
+  }
 });
 
-// ✅ Quit signal from listener
 ipcMain.on('quit-app', () => {
-    app.quit();
+  app.quit();
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
 });

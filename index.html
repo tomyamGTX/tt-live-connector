@@ -1,10 +1,65 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ms">
 
 <head>
   <meta charset="UTF-8" />
   <title>Live Overlay</title>
   <style>
+    :root {
+      --bg-light: rgba(255, 255, 255, 0.05);
+      --gold: gold;
+      --gold-bg: rgba(255, 215, 0, 0.15);
+    }
+
+    #dragBar {
+      height: 30px;
+      background: rgba(255, 255, 255, 0.05);
+      -webkit-app-region: drag;
+      font-weight: bold;
+      padding: 4px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      border-top-left-radius: 12px;
+      border-top-right-radius: 12px;
+      user-select: none;
+      cursor: move;
+    }
+
+    .copy-btn {
+      margin-left: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      padding: 2px 6px;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    .comment {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .comment span {
+      flex-grow: 1;
+      pointer-events: none;
+      /* disables click */
+      user-select: text;
+      /* allows highlighting */
+    }
+
+    /* Prevent drag on the rest */
+    #container>*:not(#dragBar) {
+      -webkit-app-region: no-drag;
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -59,7 +114,7 @@
       text-align: center;
       padding: 8px 12px;
       border-radius: 8px;
-      background: rgba(255, 255, 255, 0.05);
+      background: var(--bg-light);
       transition: opacity 0.3s ease;
     }
 
@@ -84,7 +139,7 @@
 
     .comment,
     .gift {
-      background: rgba(255, 255, 255, 0.05);
+      background: var(--bg-light);
       padding: 6px 10px;
       border-radius: 6px;
       word-break: break-word;
@@ -92,15 +147,15 @@
     }
 
     .gift {
-      color: gold;
+      color: var(--gold);
       font-weight: bold;
-      background: rgba(255, 215, 0, 0.15);
-      border: 1px solid gold;
+      background: var(--gold-bg);
+      border: 1px solid var(--gold);
       animation: popIn 0.3s ease-in-out;
     }
 
     #giftThankYou {
-      color: gold;
+      color: var(--gold);
       font-size: 18px;
       font-weight: bold;
       text-align: center;
@@ -111,6 +166,8 @@
       display: none;
       width: 100%;
       height: auto;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
       max-width: 100%;
       max-height: 100%;
       border-radius: 12px;
@@ -125,6 +182,10 @@
 
     .fade-out {
       animation: fadeOut 0.5s ease-out forwards;
+    }
+
+    .comment.new {
+      animation: pulse 0.4s ease;
     }
 
     @keyframes popIn {
@@ -160,17 +221,32 @@
         opacity: 0;
       }
     }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.02);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
   </style>
 </head>
 
 <body>
   <div id="container">
-    <div id="liveStatus">🟢 Live sekarang — 00:00:00</div>
-    <div id="viewerStatus">👀 0 sedang menonton</div>
-    <div id="comment">...</div>
+    <div id="dragBar">Live Overlay</div>
+    <div id="liveStatus" role="status" aria-live="polite">🟢 Live sekarang — 00:00:00</div>
+    <div id="viewerStatus" role="status" aria-live="polite">👀 0 sedang menonton</div>
+    <div id="comment" aria-live="polite">...</div>
     <div id="comments"></div>
     <div id="giftThankYou">🎁 Terima kasih!</div>
-    <video id="giftVideo" autoplay playsinline></video>
+    <video id="giftVideo" autoplay playsinline muted></video>
   </div>
 
   <script src="renderer.js"></script>
