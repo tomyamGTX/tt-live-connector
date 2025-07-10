@@ -21,9 +21,17 @@ let idleTimeout;
 let lastTriggeredByDev = null;
 let lastGift = null;
 
-function enterIdleMode() {
+async function enterIdleMode() {
   if (isIdle || isVideoPlaying) return;
+
+  const wheelVisible = await window.electronAPI.isWheelVisible();
+  if (wheelVisible) {
+    console.log('🎡 Giveaway active — skipping idle mode');
+    return;
+  }
+
   isIdle = true;
+  console.log('💤 Entering idle mode - enabling click-through');
 
   commentBox.style.opacity = '0';
   commentList.style.opacity = '0';
@@ -33,12 +41,16 @@ function enterIdleMode() {
   container.style.maxHeight = '120px';
   container.style.minHeight = '120px';
 
+  window.electronAPI.setIgnoreMouseEvents(true);
   window.electronAPI.resizeWindow(300, 100);
 }
+
 
 function exitIdleMode() {
   if (!isIdle) return;
   isIdle = false;
+
+  console.log('✅ Exiting idle mode - disabling click-through');
 
   commentBox.style.opacity = '1';
   commentList.style.opacity = '1';
@@ -46,6 +58,7 @@ function exitIdleMode() {
   container.style.maxWidth = '350px';
   container.style.minHeight = `${uiWidth}px`;
 
+  window.electronAPI.setIgnoreMouseEvents(false); // Click-through OFF
   window.electronAPI.resizeWindow(400, uiWidth);
 }
 
@@ -92,14 +105,21 @@ function processGiftQueue() {
   giftMsg.style.display = 'block';
   setTimeout(() => (giftMsg.style.display = 'none'), 8000);
 
-  const giftMap = {
-    Rose: 'rose.mp4',
-    Flower: 'flower.mp4',
-    TikTok: 'default.mp4',
-  };
+  const videoList = [
+    'rose.mp4',
+    'flower.mp4',
+    'star.mp4',
+    'heart.mp4',
+    'balloon.mp4',
+    'sparkle.mp4',
+    'confetti.mp4',
+    'default.mp4'
+  ];
 
-  const file = giftMap[data.giftName] || 'default.mp4';
-  video.src = `gift-videos/${file}`;
+  const randomIndex = Math.floor(Math.random() * videoList.length);
+  const randomFile = videoList[randomIndex];
+
+  video.src = `gift-videos/${randomFile}`;
   video.style.display = 'block';
   video.muted = false;
   video.currentTime = 0;
@@ -161,6 +181,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const elapsed = Math.floor((Date.now() - liveStartTime) / 1000);
       liveStatus.textContent = `🟢 Live sekarang — ${formatDuration(elapsed)}`;
     }, 1000);
+    // ⬇️ Exit idle when user clicks the live overlay
+    const liveOverlay = document.getElementById('container');
+    if (liveOverlay) {
+      liveOverlay.addEventListener('click', () => {
+        resetIdleTimer();    // Restart the idle countdown
+        exitIdleMode();      // Exit idle immediately if in idle mode
+      });
+    }
   });
 
   window.electronAPI.onViewerCount(viewerCount => {
@@ -212,6 +240,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
       div.appendChild(copyBtn);
     }
+    // ✅ Handle !giveaway (add to spinner)
+    if (commentText.toLowerCase().startsWith('!giveaway')) {
+      const match = commentText.match(/!giveaway\s+(.*)/i);
+      const giveawayName = match ? match[1].trim() : data.nickname;
+
+      if (giveawayName.length > 0) {
+        window.electronAPI.addToWheel(giveawayName);
+      }
+    }
+
+
+
 
     // ✅ Copy button for UID (Genshin, HSR, ZZZ Asia)
     const uidPatterns = [

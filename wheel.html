@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Giveaway Wheel</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: rgba(0, 0, 0, 0.85);
+            /* NOT fully transparent */
+            user-select: none;
+        }
+
+        canvas {
+            cursor: pointer;
+        }
+
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: rgba(0, 0, 0, 0.85);
+            /* ✅ visible but still transparent */
+        }
+
+        #pointer {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 30px;
+            color: red;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background: transparent;
+        }
+
+        #winner {
+            position: absolute;
+            top: 45%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 20px;
+            font-weight: bold;
+            display: none;
+            z-index: 2000;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 1500;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            font-size: 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        #minimizeBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 16px;
+            background: rgba(255, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            padding: 4px 8px;
+            z-index: 9999;
+            -webkit-app-region: no-drag;
+        }
+
+        #minimizeBtn:hover {
+            background: red;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="pointer">&#9650;</div>
+    <canvas id="wheelCanvas" width="450" height="450"></canvas>
+    <div id="winner"></div>
+
+    <div id="controls">
+        <button class="btn" id="spinBtn">🎯 Spin</button>
+        <button class="btn" id="resetBtn">🔄 Reset</button>
+    </div>
+
+    <button id="minimizeBtn">_</button>
+
+    <script>
+        const canvas = document.getElementById("wheelCanvas");
+        const ctx = canvas.getContext("2d");
+        const winnerDiv = document.getElementById("winner");
+        const spinBtn = document.getElementById("spinBtn");
+        const resetBtn = document.getElementById("resetBtn");
+        const minimizeBtn = document.getElementById("minimizeBtn");
+
+        let names = [];
+        let colors = [];
+        let currentAngle = 0;
+        let spinning = false;
+
+        function generateColors() {
+            colors = names.map((_, i) =>
+                `hsl(${(360 / names.length) * i}, 80%, 60%)`
+            );
+        }
+
+        function drawWheel() {
+            const radius = canvas.width / 2;
+            const arc = (2 * Math.PI) / names.length;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < names.length; i++) {
+                const angle = arc * i + currentAngle;
+                ctx.beginPath();
+                ctx.moveTo(radius, radius);
+                ctx.arc(radius, radius, radius, angle, angle + arc);
+                ctx.fillStyle = colors[i];
+                ctx.fill();
+
+                ctx.save();
+                ctx.translate(radius, radius);
+                ctx.rotate(angle + arc / 2);
+                ctx.textAlign = "right";
+                ctx.fillStyle = "white";
+                ctx.font = "bold 16px sans-serif";
+                ctx.fillText(names[i], radius - 10, 5);
+                ctx.restore();
+            }
+        }
+
+        function spinWheel() {
+            if (spinning || names.length < 2) return;
+            spinning = true;
+            const spins = 5;
+            const arc = (2 * Math.PI) / names.length;
+            const winnerIndex = Math.floor(Math.random() * names.length);
+            const targetAngle = (3 * Math.PI / 2) - (winnerIndex * arc + arc / 2);
+            const totalAngle = spins * 2 * Math.PI + targetAngle;
+            const start = performance.now();
+            const duration = 4000;
+
+            function animate(time) {
+                const progress = Math.min((time - start) / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                currentAngle = totalAngle * eased;
+                drawWheel();
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    showWinner(names[winnerIndex]);
+                    spinning = false;
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        function showWinner(name) {
+            winnerDiv.textContent = `🎉 ${name} menang! 🎉`;
+            winnerDiv.style.display = "block";
+            setTimeout(() => {
+                winnerDiv.style.display = "none";
+            }, 3000);
+        }
+
+        function addName(name) {
+            if (!names.includes(name)) {
+                names.push(name);
+                generateColors();
+                drawWheel();
+            }
+        }
+
+        function resetWheel() {
+            names = [];
+            colors = [];
+            currentAngle = 0;
+            drawWheel();
+        }
+
+        // Electron integration
+        window.addEventListener("DOMContentLoaded", () => {
+            drawWheel();
+
+            spinBtn.addEventListener("click", spinWheel);
+            resetBtn.addEventListener("click", resetWheel);
+            minimizeBtn.addEventListener("click", () => {
+                if (window.electronAPI?.minimizeWheel) {
+                    window.electronAPI.minimizeWheel();
+                }
+            });
+
+            if (window.electronAPI?.onAddName) {
+                window.electronAPI.onAddName((_, name) => {
+                    addName(name);
+                });
+            } else {
+                // fallback for dev: simulate names
+                setTimeout(() => {
+                    ["Ali", "Siti", "John", "Doe"].forEach(addName);
+                }, 500);
+            }
+        });
+    </script>
+</body>
+
+</html>
