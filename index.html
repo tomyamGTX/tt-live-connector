@@ -86,14 +86,23 @@
       flex-direction: column;
       gap: 10px;
       width: 100%;
-      height: 100%;
+      height: auto;
       transition: all 0.4s ease;
       overflow: hidden;
+
+      min-height: 120px;
+      /* Allow dynamic size */
     }
 
     #container.expanded {
       max-width: 1000px;
       min-height: 900px;
+    }
+
+    #container.idle {
+      gap: 8px;
+      padding-bottom: 8px;
+      pointer-events: none;
     }
 
     #liveStatus,
@@ -188,6 +197,38 @@
       animation: pulse 0.4s ease;
     }
 
+    #songRequestQueue {
+      background: rgba(255, 255, 255, 0.04);
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: auto;
+      max-height: 150px;
+      overflow-y: auto;
+      pointer-events: auto !important;
+      z-index: 1000;
+    }
+
+    .song-request {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 14px;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .song-request a {
+      color: #ffd700;
+      text-decoration: none;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     @keyframes popIn {
       0% {
         transform: scale(0.8);
@@ -246,10 +287,27 @@
     <div id="comment" aria-live="polite">...</div>
     <div id="comments"></div>
     <div id="giftThankYou">🎁 Terima kasih!</div>
-    <video id="giftVideo" autoplay playsinline muted></video>
+    <video id="giftVideo" autoplay playsinline></video>
+    <audio id="audioPlayer" autoplay hidden></audio>
+    <div id="nowPlaying" style="font-size:16px; color:goldenrod; font-weight:bold; display:none;">
+      🎧 Sekarang dimainkan: <span id="currentSongTitle"></span>
+    </div>
+
+    <div id="songRequestQueue">
+      <div style="font-weight:bold; font-size:16px; margin-bottom:4px;">🎶 Permintaan Lagu</div>
+      <div id="songList" style="display:flex; flex-direction:column; gap:6px;"></div>
+    </div>
   </div>
 
   <script src="renderer.js"></script>
 </body>
+<script>
+  const audio = document.getElementById('audioPlayer');
+  if (audio) {
+    audio.addEventListener('ended', () => {
+      window.close();
+    });
+  }
+</script>
 
 </html>
