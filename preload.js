@@ -8,6 +8,7 @@ ipcRenderer.on('add-name', (_, name) => {
 ipcRenderer.on('update-audio', (_, data) => {
   window.dispatchEvent(new CustomEvent('update-audio', { detail: data }));
 });
+
 contextBridge.exposeInMainWorld('electronAPI', {
   setIgnoreMouseEvents: (ignore) => ipcRenderer.send('set-ignore-mouse-events', ignore),
   submitUsername: (username) => ipcRenderer.send('username-submitted', username),
@@ -41,5 +42,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openAudioWindow: (title, audioUrl) =>
     ipcRenderer.send('open-audio-window', { title, audioUrl }),
   onPopupAudioClosed: (callback) => ipcRenderer.on('popup-audio-closed', callback),
+  minimizeSelf: () => ipcRenderer.send('minimize-audio-popup'),
 
 });

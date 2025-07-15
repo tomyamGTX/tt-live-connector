@@ -1,73 +1,86 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-  <meta charset="UTF-8">
-  <title>YouTube Player</title>
-  <style>
-    html, body {
-      margin: 0;
-      background: black;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    #player {
-      width: 100%;
-      height: 100%;
-    }
-  </style>
-</head>
-<body>
-  <div id="player"></div>
-
-  <script>
-    const params = new URLSearchParams(location.search);
-    const videoId = params.get('v');
-
-    const tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
-    document.body.appendChild(tag);
-
-    let player;
-    function onYouTubeIframeAPIReady() {
-      player = new YT.Player('player', {
-        videoId: videoId,
-        playerVars: {
-          autoplay: 1,
-          mute: 0,
-          rel: 0,
-          modestbranding: 1
-        },
-        events: {
-          'onReady': onPlayerReady,
-          'onStateChange': onPlayerStateChange,
-          'onError': onPlayerError // 👈 handle error
+    <meta charset="UTF-8">
+    <title>YouTube Player</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            background: black;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-      });
-    }
 
-    function onPlayerReady(event) {
-      player.setVolume(30); // Set volume if needed
-    }
+        #player {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
 
-    function onPlayerStateChange(event) {
-      if (event.data === YT.PlayerState.ENDED) {
-        window.close(); // ✅ Close on video end
-      }
-    }
+<body>
+    <div id="player"></div>
 
-    function onPlayerError(event) {
-      console.warn('❌ YouTube Player Error:', event.data);
-      // Common error codes:
-      // 2: Invalid video ID
-      // 5: HTML5 error
-      // 100: Video not found
-      // 101/150: Embedding not allowed
-      window.close(); // ✅ Close the window on any error
-    }
+    <script>
+        const params = new URLSearchParams(location.search);
+        const videoId = params.get('v');
 
-    window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
-  </script>
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        document.body.appendChild(tag);
+
+        let player;
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                videoId: videoId,
+                playerVars: {
+                    autoplay: 1,
+                    mute: 0,
+                    rel: 0,
+                    modestbranding: 1
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            player.setVolume(20); // adjust this value as needed
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.ENDED) {
+                window.close();
+            }
+        }
+
+        function onPlayerError(event) {
+            console.warn('❌ YouTube Player Error:', event.data);
+            const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+            window.open(
+                videoUrl,
+                '_blank',
+                'width=480,height=300,top=10,left=20'
+            );
+
+            // Try minimizing the window (via Electron IPC)
+            if (window.electronAPI && window.electronAPI.minimizeSelf) {
+                window.electronAPI.minimizeSelf(); // requires preload-exposed function
+            }
+
+            // Automatically close the popup after 4 minutes (240000 ms)
+            setTimeout(() => window.close(), 240000);
+        }
+
+        window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+    </script>
 </body>
+
 </html>

@@ -10,7 +10,7 @@ const songListEl = document.getElementById('songList');
 
 let songQueue = [];
 let isAudioPlaying = false;
-
+let hasEnded = false;
 
 let latestViewerCount = 0;
 let liveStartTime = null;
@@ -25,13 +25,12 @@ let interactionTimeout;
 
 const uiWidth = 430;
 
-function resetInteractionTimer(timeout = 10000) {
+function resetInteractionTimer(timeout = 180000) { // 3 minutes = 180000ms
   clearTimeout(interactionTimeout);
   window.electronAPI.showWindow();
 
   interactionTimeout = setTimeout(() => {
-    const hasActiveAudio = isAudioPlaying || songQueue.length > 0;
-    if (!isVideoPlaying && !hasActiveAudio) {
+    if (!isVideoPlaying) {
       window.electronAPI.minimizeWindow();
     }
   }, timeout);
@@ -66,6 +65,8 @@ function playNextSong() {
 audioPlayer.addEventListener('ended', () => {
   isAudioPlaying = false;
   document.getElementById('nowPlaying').style.display = 'none'; // hide it
+  window.electronAPI.showWindow();
+
   playNextSong(); // if anything left
 });
 
@@ -232,11 +233,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-
     if (commentText.toLowerCase().startsWith('!skip')) {
-      audioPlayer.pause();
-      playNextSong();
+      if (isAudioPlaying) {
+        isAudioPlaying = false;
+        window.electronAPI.closeAudioWindow(); // 👈 Close the popup
+        document.getElementById('nowPlaying').style.display = 'none';
+      }
     }
+
 
     // Handle !giveaway
     if (commentText.toLowerCase().startsWith('!giveaway')) {
@@ -314,9 +318,23 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   window.electronAPI.onLiveEnded(() => {
-    document.body.style.transition = 'opacity 1s ease';
+    if (hasEnded) return; // Prevent multiple calls
+    hasEnded = true;
+
+    // Smooth fade-out
+    document.body.style.transition = 'opacity 0.8s ease-in-out';
     document.body.style.opacity = '0';
-    setTimeout(() => window.electronAPI.quitApp(), 1000);
+
+    // Use animation frame for smoother sync
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        try {
+          window.electronAPI.quitApp?.(); // Optional chaining in case it's undefined
+        } catch (err) {
+          console.error('Failed to quit app:', err);
+        }
+      }, 800); // Match transition time
+    });
   });
 
   window.electronAPI.onPopupAudioClosed(() => {

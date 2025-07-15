@@ -27,10 +27,10 @@ function createPromptWindow() {
 
 function createOverlayWindow(username) {
   overlayWindow = new BrowserWindow({
-    width: 400,
-    height: 400,
-    x: 15,
-    y: 135,
+    width: 350,
+    height: 450,
+    x: 1150,
+    y: 15,
     frame: false, titleBarStyle: 'hidden',   // ✅ Optional: hides macOS titlebar styling
     transparent: true,
     alwaysOnTop: true,
@@ -230,7 +230,7 @@ ipcMain.on('open-audio-window', async (event, { title }) => {
         }
       }, 3000); // ⏱️ 3 seconds delay (adjust as needed)
     });
-    
+
     currentAudioWindow.on('closed', () => {
       currentAudioWindow = null;
       overlayWindow?.webContents.send('popup-audio-closed');
@@ -243,6 +243,11 @@ ipcMain.on('open-audio-window', async (event, { title }) => {
 });
 
 
+ipcMain.on('minimize-audio-popup', () => {
+  if (currentAudioWindow && !currentAudioWindow.isDestroyed()) {
+    currentAudioWindow.minimize();
+  }
+});
 
 
 ipcMain.on('quit-app', () => {
