@@ -25,7 +25,6 @@
     const params = new URLSearchParams(location.search);
     const videoId = params.get('v');
 
-    // Load YouTube IFrame API
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
     document.body.appendChild(tag);
@@ -41,15 +40,31 @@
           modestbranding: 1
         },
         events: {
-          'onStateChange': onPlayerStateChange
+          'onReady': onPlayerReady,
+          'onStateChange': onPlayerStateChange,
+          'onError': onPlayerError // 👈 handle error
         }
       });
     }
 
+    function onPlayerReady(event) {
+      player.setVolume(30); // Set volume if needed
+    }
+
     function onPlayerStateChange(event) {
       if (event.data === YT.PlayerState.ENDED) {
-        window.close(); // ✅ Close the window when video ends
+        window.close(); // ✅ Close on video end
       }
+    }
+
+    function onPlayerError(event) {
+      console.warn('❌ YouTube Player Error:', event.data);
+      // Common error codes:
+      // 2: Invalid video ID
+      // 5: HTML5 error
+      // 100: Video not found
+      // 101/150: Embedding not allowed
+      window.close(); // ✅ Close the window on any error
     }
 
     window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
