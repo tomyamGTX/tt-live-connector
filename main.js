@@ -27,7 +27,7 @@ function createPromptWindow() {
 
 function createOverlayWindow(username) {
   overlayWindow = new BrowserWindow({
-    width: 350,
+    width: 360,
     height: 450,
     x: 1150,
     y: 15,

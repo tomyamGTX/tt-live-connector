@@ -3,12 +3,28 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>Live Overlay</title>
+  <title>Live Overlay - Lupa</title>
   <style>
     :root {
-      --bg-light: rgba(255, 255, 255, 0.05);
-      --gold: gold;
-      --gold-bg: rgba(255, 215, 0, 0.15);
+      --bg-light: rgba(255, 0, 0, 0.08);
+      --gold: #ff4d4f;
+      --gold-bg: rgba(255, 77, 79, 0.15);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      background: transparent;
+      font-family: 'Segoe UI', sans-serif;
+      overflow: hidden;
+      opacity: 1;
+      transition: opacity 0.5s ease;
+      -webkit-app-region: drag;
     }
 
     #dragBar {
@@ -40,44 +56,9 @@
       background: rgba(255, 255, 255, 0.25);
     }
 
-    .comment {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 6px;
-    }
-
-    .comment span {
-      flex-grow: 1;
-      pointer-events: none;
-      /* disables click */
-      user-select: text;
-      /* allows highlighting */
-    }
-
-    /* Prevent drag on the rest */
-    #container>*:not(#dragBar) {
-      -webkit-app-region: no-drag;
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
-      background: transparent;
-      font-family: 'Segoe UI', sans-serif;
-      overflow: hidden;
-      opacity: 1;
-      transition: opacity 0.5s ease;
-      -webkit-app-region: drag;
-    }
-
     #container {
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(139, 0, 0, 0.7);
+      /* crimson/oxblood */
       color: white;
       border-radius: 12px;
       padding: 12px;
@@ -89,9 +70,7 @@
       height: auto;
       transition: all 0.4s ease;
       overflow: hidden;
-
       min-height: 120px;
-      /* Allow dynamic size */
     }
 
     #container.expanded {
@@ -107,7 +86,7 @@
 
     #liveStatus,
     #viewerStatus {
-      text-align: center;
+      text-align: left;
       font-size: 16px;
       line-height: 1.2;
       opacity: 0.6;
@@ -119,6 +98,8 @@
     }
 
     #comment {
+      margin-top: 40px;
+      /* Adjust as needed */
       font-size: 20px;
       text-align: center;
       padding: 8px 12px;
@@ -146,13 +127,27 @@
       border-radius: 4px;
     }
 
-    .comment,
-    .gift {
+    .comment {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
       background: var(--bg-light);
       padding: 6px 10px;
       border-radius: 6px;
       word-break: break-word;
       overflow-wrap: break-word;
+    }
+
+    .comment span {
+      flex-grow: 1;
+      pointer-events: none;
+      user-select: text;
+    }
+
+    .comment.new {
+      animation: pulse 0.4s ease;
+      box-shadow: 0 0 6px rgba(255, 0, 0, 0.4);
     }
 
     .gift {
@@ -161,6 +156,7 @@
       background: var(--gold-bg);
       border: 1px solid var(--gold);
       animation: popIn 0.3s ease-in-out;
+      box-shadow: 0 0 10px rgba(255, 77, 79, 0.5);
     }
 
     #giftThankYou {
@@ -182,19 +178,6 @@
       border-radius: 12px;
       margin-top: 10px;
       box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-    }
-
-    /* Animations */
-    .fade-in {
-      animation: fadeIn 0.5s ease-in forwards;
-    }
-
-    .fade-out {
-      animation: fadeOut 0.5s ease-out forwards;
-    }
-
-    .comment.new {
-      animation: pulse 0.4s ease;
     }
 
     #songRequestQueue {
@@ -221,7 +204,7 @@
     }
 
     .song-request a {
-      color: #ffd700;
+      color: #ff4d4f;
       text-decoration: none;
       max-width: 200px;
       overflow: hidden;
@@ -229,6 +212,29 @@
       white-space: nowrap;
     }
 
+    #nowPlaying {
+      font-size: 16px;
+      color: #ff4d4f;
+      font-weight: bold;
+      display: none;
+    }
+
+    #lupaMascot {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 120px;
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(255, 0, 0, 0.6);
+      z-index: 9999;
+      pointer-events: none;
+      animation: mascotFade 1s ease-out;
+    }
+
+
+
+    /* Animations */
     @keyframes popIn {
       0% {
         transform: scale(0.8);
@@ -276,6 +282,18 @@
         transform: scale(1);
       }
     }
+
+    @keyframes mascotFade {
+      0% {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
   </style>
 </head>
 
@@ -289,25 +307,27 @@
     <div id="giftThankYou">🎁 Terima kasih!</div>
     <video id="giftVideo" autoplay playsinline></video>
     <audio id="audioPlayer" autoplay hidden></audio>
-    <div id="nowPlaying" style="font-size:16px; color:goldenrod; font-weight:bold; display:none;">
-      🎧 Sekarang dimainkan: <span id="currentSongTitle"></span>
-    </div>
-
+    <div id="nowPlaying">🎧 Sekarang dimainkan: <span id="currentSongTitle"></span></div>
     <div id="songRequestQueue">
       <div style="font-weight:bold; font-size:16px; margin-bottom:4px;">🎶 Permintaan Lagu</div>
       <div id="songList" style="display:flex; flex-direction:column; gap:6px;"></div>
     </div>
   </div>
 
+  <!-- Lupa mascot -->
+  <img id="lupaMascot"
+    src="https://cdn.discordapp.com/attachments/1155546539574431817/1394592874430992414/lupa-wuthering.gif?ex=687bfc93&is=687aab13&hm=e47abde06caaf5aa1a5ed8eb93ade158305003b5ac128ae687218665e83fab4f&"
+    alt="Lupa" />
+
   <script src="renderer.js"></script>
+  <script>
+    const audio = document.getElementById('audioPlayer');
+    if (audio) {
+      audio.addEventListener('ended', () => {
+        window.close();
+      });
+    }
+  </script>
 </body>
-<script>
-  const audio = document.getElementById('audioPlayer');
-  if (audio) {
-    audio.addEventListener('ended', () => {
-      window.close();
-    });
-  }
-</script>
 
 </html>
