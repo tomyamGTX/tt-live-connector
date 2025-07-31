@@ -219,8 +219,12 @@ ipcMain.on('open-audio-window', async (event, { title }) => {
 
     const playerPath = path.join(__dirname, 'youtube-player.html');
     currentAudioWindow.loadFile(playerPath, {
-      query: { v: video.videoId }
+      query: {
+        v: video.videoId,
+        dur: video.seconds  // Pass video duration to renderer
+      }
     });
+
 
     // 🔽 Auto-minimize after loading and delay
     currentAudioWindow.webContents.once('did-finish-load', () => {
@@ -246,6 +250,13 @@ ipcMain.on('open-audio-window', async (event, { title }) => {
 ipcMain.on('minimize-audio-popup', () => {
   if (currentAudioWindow && !currentAudioWindow.isDestroyed()) {
     currentAudioWindow.minimize();
+  }
+});
+
+ipcMain.on('close-audio-window', () => {
+  if (currentAudioWindow && !currentAudioWindow.isDestroyed()) {
+    currentAudioWindow.close();
+    currentAudioWindow = null;
   }
 });
 

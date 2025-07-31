@@ -71,13 +71,18 @@ function attachListener(win, username) {
         if (comment.length === 0 || comment.length > 300) return;
 
         const fullMessage = `${nickname}: ${comment}`;
-        if (spokenMessages.has(fullMessage)) return;
+        const isRepetitiveCommand = comment === '!play' || comment === '!skip';
 
-        spokenMessages.add(fullMessage);
-        if (spokenMessages.size > MAX_MEMORY) {
-            const first = spokenMessages.values().next().value;
-            spokenMessages.delete(first);
+        if (!isRepetitiveCommand && spokenMessages.has(fullMessage)) return;
+
+        if (!isRepetitiveCommand) {
+            spokenMessages.add(fullMessage);
+            if (spokenMessages.size > MAX_MEMORY) {
+                const first = spokenMessages.values().next().value;
+                spokenMessages.delete(first);
+            }
         }
+
 
         console.log(`💬 ${nickname}: ${comment}`);
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -109,10 +114,30 @@ function attachListener(win, username) {
 
     function handleLiveEnd() {
         console.log("🔴 Live ended");
+
+        // Send to all windows to let renderer handle UI cleanup
+        BrowserWindow.getAllWindows().forEach(win => {
+            if (!win.isDestroyed()) {
+                win.webContents.send('live-ended');
+            }
+        });
+
+        // Close all windows except main
+        BrowserWindow.getAllWindows().forEach(win => {
+            if (win !== mainWindow && !win.isDestroyed()) {
+                win.close();
+            }
+        });
+
+        // Optionally, quit app after short delay
         setTimeout(() => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.close();
+            }
             app.quit();
         }, 2000);
     }
+
 }
 
 module.exports = { attachListener };

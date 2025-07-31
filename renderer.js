@@ -124,7 +124,8 @@ function processGiftQueue() {
   video.currentTime = 0;
   video.volume = 0.5;
 
-  video.onerror = () => cleanupAfterVideo();
+  video.onerror = cleanupAfterVideo;
+
   video.onloadeddata = () => {
     const width = video.videoWidth || 400;
     const height = video.videoHeight || 400;
@@ -133,20 +134,17 @@ function processGiftQueue() {
     container.style.maxHeight = `${height}px`;
     window.electronAPI.resizeWindow(width, height);
 
-    video.play().then(() => {
-      setTimeout(() => {
-        if (!video.paused) {
-          video.pause();
-          cleanupAfterVideo();
-        }
-      }, 19000);
-    }).catch(cleanupAfterVideo);
+    video.onended = cleanupAfterVideo; // ✅ Set before play
+    video.play().catch((err) => {
+      console.error("❌ Video play error:", err);
+      cleanupAfterVideo();
+    });
   };
 
-  video.onended = cleanupAfterVideo;
   commentBox.style.display = 'none';
   commentList.style.display = 'none';
 }
+
 
 function cleanupAfterVideo() {
   video.style.display = 'none';
@@ -309,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
       timestamp: Date.now()
     };
 
-    if (isDuplicateGift(gift)) return;
+    // if (isDuplicateGift(gift)) return;
 
     lastGift = gift;
     giftVideoQueue.push(gift);
@@ -359,12 +357,4 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('👋 Renderer loaded');
 });
 
-function isDuplicateGift(gift) {
-  return (
-    lastGift &&
-    lastGift.nickname === gift.nickname &&
-    lastGift.giftName === gift.giftName &&
-    lastGift.repeatCount === gift.repeatCount &&
-    Date.now() - lastGift.timestamp < 1000
-  );
-}
+

@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAudioStream: (url) => ipcRenderer.invoke('getAudioStream', url),
   openAudioWindow: (title, audioUrl) =>
     ipcRenderer.send('open-audio-window', { title, audioUrl }),
+ closeAudioWindow: () => ipcRenderer.send('close-audio-window'),
   onPopupAudioClosed: (callback) => ipcRenderer.on('popup-audio-closed', callback),
   minimizeSelf: () => ipcRenderer.send('minimize-audio-popup'),
 

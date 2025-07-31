@@ -75,9 +75,14 @@
                 window.electronAPI.minimizeSelf(); // requires preload-exposed function
             }
 
-            // Automatically close the popup after 4 minutes (240000 ms)
-            setTimeout(() => window.close(), 240000);
+            // Try to get fallback duration from query string (if passed from Electron)
+            const params = new URLSearchParams(window.location.search);
+            const fallbackDuration = parseInt(params.get('dur') || '240', 10); // seconds
+
+            // Close window after fallbackDuration + 30s (to account for ads)
+            setTimeout(() => window.close(), (fallbackDuration + 30) * 1000);
         }
+
 
         window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
     </script>
