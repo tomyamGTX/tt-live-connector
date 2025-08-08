@@ -79,8 +79,8 @@
             const params = new URLSearchParams(window.location.search);
             const fallbackDuration = parseInt(params.get('dur') || '240', 10); // seconds
 
-            // Close window after fallbackDuration + 30s (to account for ads)
-            setTimeout(() => window.close(), (fallbackDuration + 30) * 1000);
+            // Close window after fallbackDuration + 10s (to account for ads)
+            setTimeout(() => window.close(), (fallbackDuration + 10) * 1000);
         }
 
 

@@ -34,7 +34,9 @@
       "gift-videos/**/*",
       "icon.ico",
       "username-prompt.html",
-      "preload.js"
+      "preload.js",
+      "wheel.html",
+      "youtube-player.html"
     ],
     "win": {
       "target": "nsis",

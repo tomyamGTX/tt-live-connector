@@ -7,7 +7,7 @@ const viewerStatus = document.getElementById('viewerStatus');
 const container = document.getElementById('container');
 const audioPlayer = document.getElementById('audioPlayer');
 const songListEl = document.getElementById('songList');
-
+const skipCooldowns = new Map(); // nickname -> last skip time
 let songQueue = [];
 let isAudioPlaying = false;
 let hasEnded = false;
@@ -231,14 +231,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+    // if (commentText.toLowerCase().startsWith('!skip')) {
+    //   if (isAudioPlaying) {
+    //     isAudioPlaying = false;
+    //     window.electronAPI.closeAudioWindow(); // 👈 Close the popup
+    //     document.getElementById('nowPlaying').style.display = 'none';
+    //   }
+    // }
     if (commentText.toLowerCase().startsWith('!skip')) {
-      if (isAudioPlaying) {
-        isAudioPlaying = false;
-        window.electronAPI.closeAudioWindow(); // 👈 Close the popup
-        document.getElementById('nowPlaying').style.display = 'none';
+      const now = Date.now();
+      const nickname = data.nickname; // ⬅️ Add this line at the beginning of the handler
+      const lastSkip = skipCooldowns.get(nickname) || 0;
+
+      // 3 minutes = 180000 milliseconds
+      if (now - lastSkip >= 180000) {
+        skipCooldowns.set(nickname, now); // update last skip time
+
+        if (isAudioPlaying) {
+          isAudioPlaying = false;
+          window.electronAPI.closeAudioWindow();
+          document.getElementById('nowPlaying').style.display = 'none';
+          console.log(`⏭️ ${nickname} skipped the current song.`);
+        }
+      } else {
+        const waitTime = Math.ceil((180000 - (now - lastSkip)) / 1000);
+        console.log(`⏱️ ${nickname} must wait ${waitTime}s to skip again.`);
       }
     }
-
 
     // Handle !giveaway
     if (commentText.toLowerCase().startsWith('!giveaway')) {
