@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html lang="ms">
-
 <head>
   <meta charset="UTF-8">
-  <title>Masukkan Username TikTok</title>
+  <title>Hu Tao TikTok Login</title>
   <style>
     * {
       box-sizing: border-box;
@@ -12,80 +11,178 @@
     body {
       margin: 0;
       font-family: 'Segoe UI', sans-serif;
-      background: #111;
-      color: #fff;
+      background: #2B1B17;
+      color: #FFD67E;
       height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Falling petals animation */
+    .petal {
+      position: fixed;
+      top: -10px;
+      width: 20px;
+      height: 20px;
+      background: radial-gradient(circle at 30% 30%, #E1A0A8, #C6373F);
+      border-radius: 50% 50% 50% 50%;
+      animation: fall linear infinite;
+      opacity: 0.8;
+      z-index: 0;
+    }
+
+    @keyframes fall {
+      0% { transform: translateY(-10px) rotate(0deg); }
+      100% { transform: translateY(110vh) rotate(360deg); }
     }
 
     .username-box {
-      background: #1c1c1c;
+      background: rgba(43, 27, 23, 0.95);
       padding: 32px;
-      border-radius: 12px;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      border-radius: 16px;
+      box-shadow: 0 8px 25px rgba(255, 214, 126, 0.3);
       text-align: center;
-      width: 300px;
+      width: 320px;
+      backdrop-filter: blur(10px);
+      position: relative;
+      z-index: 2;
+      border: 2px solid #C6373F;
+    }
+
+    .username-box img {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 10px;
+      border-radius: 50%;
+      border: 2px solid #FFD67E;
+      background: #5A1E23;
+      padding: 4px;
     }
 
     .username-box h1 {
       margin-bottom: 16px;
-      font-size: 20px;
-      color: #f0f0f0;
+      font-size: 22px;
+      font-weight: 600;
+      color: #FFD67E;
     }
 
-    .username-box input {
+    .input-wrapper {
+      position: relative;
+      margin-bottom: 18px;
+    }
+
+    .input-wrapper input {
       width: 100%;
-      padding: 10px;
-      border: none;
-      border-radius: 6px;
-      font-size: 16px;
-      margin-bottom: 20px;
-      background: #2a2a2a;
-      color: #fff;
+      padding: 12px 14px;
+      border: 1px solid #5A1E23;
+      border-radius: 8px;
+      font-size: 15px;
+      background: #1E1E1E;
+      color: #FFD67E;
+      outline: none;
+      transition: border 0.3s;
+    }
+
+    .input-wrapper input:focus {
+      border-color: #FFD67E;
+    }
+
+    .remember-me {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      margin-bottom: 22px;
+      color: #FFD67E;
+    }
+
+    .remember-me input {
+      accent-color: #FFD67E;
+      width: 16px;
+      height: 16px;
     }
 
     .username-box button {
       width: 100%;
-      padding: 10px;
-      font-size: 16px;
-      background: #00b894;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 500;
+      background: #C6373F;
       border: none;
-      color: white;
-      border-radius: 6px;
+      color: #FFD67E;
+      border-radius: 8px;
       cursor: pointer;
-      transition: background 0.3s;
+      transition: all 0.3s ease;
     }
 
     .username-box button:hover {
-      background: #00a383;
+      background: #A82B34;
+      transform: translateY(-2px);
     }
   </style>
 </head>
-
 <body>
+  <!-- Falling petals (multiple elements for effect) -->
+  <script>
+    for (let i = 0; i < 15; i++) {
+      const petal = document.createElement("div");
+      petal.classList.add("petal");
+      petal.style.left = Math.random() * 100 + "vw";
+      petal.style.animationDuration = 4 + Math.random() * 3 + "s";
+      petal.style.animationDelay = Math.random() * 5 + "s";
+      document.body.appendChild(petal);
+    }
+  </script>
+
   <div class="username-box">
+    <img src="https://media.tenor.com/EoqNs9Wy29AAAAAi/hu-tao.gif" alt="Hu Tao">
     <h1>Masukkan Username TikTok</h1>
-    <input id="usernameInput" type="text" placeholder="contoh: hachimy99">
+    <div class="input-wrapper">
+      <input id="usernameInput" type="text" placeholder="contoh: hutao_mains">
+    </div>
+    <div class="remember-me">
+      <input type="checkbox" id="rememberMe">
+      <label for="rememberMe">Ingat saya</label>
+    </div>
     <button id="submitBtn">Mulakan</button>
   </div>
 
   <script>
     const input = document.getElementById('usernameInput');
     const button = document.getElementById('submitBtn');
+    const rememberCheckbox = document.getElementById('rememberMe');
+
+    // Load saved username if exists
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedUsername = localStorage.getItem('tiktokUsername');
+      if (savedUsername) {
+        input.value = savedUsername;
+        rememberCheckbox.checked = true;
+      }
+    });
 
     function submitUsername() {
       const username = input.value.trim();
       if (username) {
-        window.electronAPI.submitUsername(username);
+        if (rememberCheckbox.checked) {
+          localStorage.setItem('tiktokUsername', username);
+        } else {
+          localStorage.removeItem('tiktokUsername');
+        }
+        // Call your Electron API or redirect
+        if (window.electronAPI) {
+          window.electronAPI.submitUsername(username);
+        } else {
+          alert("Username: " + username);
+        }
       } else {
         alert("Sila masukkan username.");
       }
     }
 
     button.addEventListener('click', submitUsername);
-
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         submitUsername();
@@ -93,5 +190,4 @@
     });
   </script>
 </body>
-
 </html>

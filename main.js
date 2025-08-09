@@ -10,8 +10,8 @@ let currentAudioWindow = null;
 
 function createPromptWindow() {
   promptWindow = new BrowserWindow({
-    width: 350,
-    height: 300,
+    width: 550,
+    height: 500,
     resizable: true,
     frame: false,
     alwaysOnTop: true,

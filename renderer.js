@@ -1,379 +1,280 @@
-const commentBox = document.getElementById('comment');
-const commentList = document.getElementById('comments');
-const giftMsg = document.getElementById('giftThankYou');
-const video = document.getElementById('giftVideo');
-const liveStatus = document.getElementById('liveStatus');
-const viewerStatus = document.getElementById('viewerStatus');
-const container = document.getElementById('container');
-const audioPlayer = document.getElementById('audioPlayer');
-const songListEl = document.getElementById('songList');
+// ====== Cached DOM elements ======
+const el = (id) => document.getElementById(id);
+const [
+  commentBox, commentList, giftMsg, video, liveStatus,
+  viewerStatus, container, audioPlayer, songListEl
+] = [
+  'comment', 'comments', 'giftThankYou', 'giftVideo', 'liveStatus',
+  'viewerStatus', 'container', 'audioPlayer', 'songList'
+].map(el);
+
+// ====== State ======
 const skipCooldowns = new Map(); // nickname -> last skip time
+const giftVideoQueue = [];
 let songQueue = [];
 let isAudioPlaying = false;
+let isVideoPlaying = false;
+let isProcessing = false;
 let hasEnded = false;
-
 let latestViewerCount = 0;
 let liveStartTime = null;
 let liveTimerInterval = null;
 let lastViewerCountUpdate = 0;
-const giftVideoQueue = [];
-let isVideoPlaying = false;
-let isProcessing = false;
 let lastTriggeredByDev = null;
 let lastGift = null;
 let interactionTimeout;
-
 const uiWidth = 430;
 
-function resetInteractionTimer(timeout = 180000) { // 3 minutes = 180000ms
+// ====== Helpers ======
+const resetInteractionTimer = (timeout = 180000) => {
   clearTimeout(interactionTimeout);
   window.electronAPI.showWindow();
-
   interactionTimeout = setTimeout(() => {
-    if (!isVideoPlaying) {
-      window.electronAPI.minimizeWindow();
-    }
+    if (!isVideoPlaying) window.electronAPI.minimizeWindow();
   }, timeout);
-}
+};
 
+const formatDuration = (sec) =>
+  [Math.floor(sec / 3600), Math.floor((sec % 3600) / 60), sec % 60]
+    .map((n) => String(n).padStart(2, '0'))
+    .join(':');
 
-function playNextSong() {
-  if (songQueue.length === 0) return;
+const truncate = (str, len = 25) =>
+  str.length > len ? str.slice(0, len) + '…' : str;
+
+const cleanupAfterVideo = () => {
+  video.style.display = 'none';
+  container.classList.remove('expanded');
+  isVideoPlaying = isProcessing = false;
+  commentBox.style.display = 'block';
+  commentList.style.display = 'flex';
+  window.electronAPI.resizeWindow(500, uiWidth);
+  resetInteractionTimer();
+  processGiftQueue();
+};
+
+// ====== Songs ======
+const playNextSong = () => {
+  if (!songQueue.length) return;
 
   const nextSong = songQueue.shift();
   isAudioPlaying = true;
 
-  currentSong = nextSong;
-  const nowPlayingDiv = document.getElementById('nowPlaying');
-  const titleSpan = document.getElementById('currentSongTitle');
-  nowPlayingDiv.style.display = 'block';
-  titleSpan.textContent = nextSong.title;
+  el('nowPlaying').style.display = 'block';
+  el('currentSongTitle').textContent = nextSong.title;
 
-  window.electronAPI.getAudioStream(nextSong.url).then(streamUrl => {
-    if (streamUrl) {
-      window.electronAPI.openAudioWindow(nextSong.title, streamUrl);
-    }
+  window.electronAPI.getAudioStream(nextSong.url).then((streamUrl) => {
+    if (streamUrl) window.electronAPI.openAudioWindow(nextSong.title, streamUrl);
   });
 
-  // Remove visual song request
-  const list = document.getElementById('songList');
-  if (list.firstChild) list.removeChild(list.firstChild);
-}
-
-
+  if (songListEl.firstChild) songListEl.removeChild(songListEl.firstChild);
+};
 
 audioPlayer.addEventListener('ended', () => {
   isAudioPlaying = false;
-  document.getElementById('nowPlaying').style.display = 'none'; // hide it
+  el('nowPlaying').style.display = 'none';
   window.electronAPI.showWindow();
-
-  playNextSong(); // if anything left
+  playNextSong();
 });
 
-function formatDuration(seconds) {
-  const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
-  const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
-  const s = String(seconds % 60).padStart(2, '0');
-  return `${h}:${m}:${s}`;
-}
-
-function truncateNickname(nickname, maxLength = 25) {
-  return nickname.length > maxLength ? nickname.slice(0, maxLength) + '…' : nickname;
-}
-
+// ====== Gifts ======
 function processGiftQueue() {
-  if (isProcessing || isVideoPlaying || giftVideoQueue.length === 0) return;
+  if (isProcessing || isVideoPlaying || !giftVideoQueue.length) return;
+  isProcessing = isVideoPlaying = true;
 
-  isProcessing = true;
-  const data = giftVideoQueue.shift();
-  isVideoPlaying = true;
+  const { nickname, giftName, repeatCount } = giftVideoQueue.shift();
+  const text = `🎁 ${nickname} hantar ${giftName} x${repeatCount}`;
 
-  const text = `🎁 ${data.nickname} hantar ${data.giftName} x${data.repeatCount}`;
   const giftDiv = document.createElement('div');
-  giftDiv.className = 'gift';
+  giftDiv.className = 'gift fade-in';
   giftDiv.innerText = text;
-  commentList.appendChild(giftDiv);
+  commentList.append(giftDiv);
   commentList.scrollTop = commentList.scrollHeight;
 
-  giftDiv.classList.add('fade-in');
   setTimeout(() => {
     giftDiv.classList.add('fade-out');
     setTimeout(() => giftDiv.remove(), 500);
   }, 5000);
 
-  giftMsg.innerHTML = `🎁 Terima kasih <strong>${data.nickname}</strong> atas ${data.giftName} x${data.repeatCount} 🙏`;
+  giftMsg.innerHTML = `🎁 Terima kasih <strong>${nickname}</strong> atas ${giftName} x${repeatCount} 🙏`;
   giftMsg.style.display = 'block';
   setTimeout(() => (giftMsg.style.display = 'none'), 8000);
 
-  const videoList = [
-    'rose.mp4',
-    'flower.mp4',
-    'star.mp4',
-    'heart.mp4',
-    'balloon.mp4',
-    'sparkle.mp4',
-    'confetti.mp4',
-    'hutao.mp4',
-    'default.mp4'
+  const videos = [
+    'rose', 'flower', 'star', 'heart', 'balloon',
+    'sparkle', 'confetti', 'hutao', 'default'
   ];
-
-  const randomFile = videoList[Math.floor(Math.random() * videoList.length)];
-  video.src = `gift-videos/${randomFile}`;
+  video.src = `gift-videos/${videos[Math.floor(Math.random() * videos.length)]}.mp4`;
   video.style.display = 'block';
   video.muted = false;
   video.currentTime = 0;
   video.volume = 0.5;
 
   video.onerror = cleanupAfterVideo;
-
   video.onloadeddata = () => {
-    const width = video.videoWidth || 400;
-    const height = video.videoHeight || 400;
-
-    container.style.maxWidth = `${width}px`;
-    container.style.maxHeight = `${height}px`;
-    window.electronAPI.resizeWindow(width, height);
-
-    video.onended = cleanupAfterVideo; // ✅ Set before play
+    const { videoWidth: w = 400, videoHeight: h = 400 } = video;
+    container.style.maxWidth = `${w}px`;
+    container.style.maxHeight = `${h}px`;
+    window.electronAPI.resizeWindow(w, h);
+    video.onended = cleanupAfterVideo;
     video.play().catch((err) => {
       console.error("❌ Video play error:", err);
       cleanupAfterVideo();
     });
   };
 
-  commentBox.style.display = 'none';
-  commentList.style.display = 'none';
+  commentBox.style.display = commentList.style.display = 'none';
 }
 
-
-function cleanupAfterVideo() {
-  video.style.display = 'none';
-  container.classList.remove('expanded');
-  isVideoPlaying = false;
-  isProcessing = false;
-
-  commentBox.style.display = 'block';
-  commentList.style.display = 'flex';
-
-  window.electronAPI.resizeWindow(500, uiWidth);
-  resetInteractionTimer();
-  processGiftQueue();
-}
-
+// ====== Main ======
 document.addEventListener('DOMContentLoaded', () => {
+  // Live start
   window.electronAPI.onLiveStarted(() => {
     liveStartTime = Date.now();
     clearInterval(liveTimerInterval);
-
     liveTimerInterval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - liveStartTime) / 1000);
-      liveStatus.textContent = `🟢 Live sekarang — ${formatDuration(elapsed)}`;
+      liveStatus.textContent = `🟢 Live sekarang — ${formatDuration(
+        Math.floor((Date.now() - liveStartTime) / 1000)
+      )}`;
     }, 1000);
   });
 
-  window.electronAPI.onViewerCount(viewerCount => {
+  // Viewer count
+  window.electronAPI.onViewerCount((count) => {
     const now = Date.now();
     if (now - lastViewerCountUpdate > 3000) {
-      latestViewerCount = viewerCount;
-      viewerStatus.textContent = `👀 ${viewerCount} sedang menonton`;
+      latestViewerCount = count;
+      viewerStatus.textContent = `👀 ${count} sedang menonton`;
       resetInteractionTimer();
       lastViewerCountUpdate = now;
     }
   });
 
+  // Comments
   window.electronAPI.onNewComment((data) => {
     resetInteractionTimer();
-
-    const commentText = data.comment;
-    const shortName = truncateNickname(data.nickname);
-    const fullDisplayText = `${shortName}: ${commentText}`;
+    const { nickname, comment } = data;
+    const shortName = truncate(nickname);
+    const fullText = `${shortName}: ${comment}`;
 
     const div = document.createElement('div');
     div.className = 'comment new';
-    div.title = `${data.nickname}: ${commentText}`;
+    div.title = `${nickname}: ${comment}`;
+    div.innerHTML = `<span>${fullText}</span>`;
 
-    const span = document.createElement('span');
-    span.textContent = fullDisplayText;
-    div.appendChild(span);
-
-
-    if (commentText.toLowerCase().includes('!play')) {
-      const match = commentText.match(/!play\s+(.*)/i);
-      const playText = match ? match[1].trim() : '';
-
-      if (playText) {
-        window.electronAPI.searchYouTube(playText).then((song) => {
-          if (!song) {
-            console.warn('Tiada hasil untuk:', playText);
-            return;
-          }
-
-          // Create visual element
+    // !play
+    if (/^!play\s+/i.test(comment)) {
+      const query = comment.replace(/^!play\s+/i, '').trim();
+      if (query) {
+        window.electronAPI.searchYouTube(query).then((song) => {
+          if (!song) return console.warn('Tiada hasil untuk:', query);
           const songDiv = document.createElement('div');
           songDiv.className = 'song-request';
-          songDiv.innerHTML = `
-<div><strong>${truncateNickname(data.nickname)}</strong> minta:
-<span>${song.title}</span></div>`;
-
-          songListEl.appendChild(songDiv);
-
-          // Add to queue and auto-play if idle
-          songQueue.push({ title: song.title, url: song.url });
+          songDiv.innerHTML = `<div><strong>${shortName}</strong> minta: <span>${song.title}</span></div>`;
+          songListEl.append(songDiv);
+          songQueue.push(song);
           if (!isAudioPlaying) playNextSong();
-
-          // Limit to 5 visible
-          while (songListEl.children.length > 5) {
-            songListEl.removeChild(songListEl.firstChild);
-          }
+          while (songListEl.children.length > 5) songListEl.removeChild(songListEl.firstChild);
         });
-
       }
     }
 
-
-    // if (commentText.toLowerCase().startsWith('!skip')) {
-    //   if (isAudioPlaying) {
-    //     isAudioPlaying = false;
-    //     window.electronAPI.closeAudioWindow(); // 👈 Close the popup
-    //     document.getElementById('nowPlaying').style.display = 'none';
-    //   }
-    // }
-    if (commentText.toLowerCase().startsWith('!skip')) {
+    // !skip with cooldown
+    if (/^!skip/i.test(comment)) {
       const now = Date.now();
-      const nickname = data.nickname; // ⬅️ Add this line at the beginning of the handler
       const lastSkip = skipCooldowns.get(nickname) || 0;
-
-      // 3 minutes = 180000 milliseconds
       if (now - lastSkip >= 180000) {
-        skipCooldowns.set(nickname, now); // update last skip time
-
+        skipCooldowns.set(nickname, now);
         if (isAudioPlaying) {
           isAudioPlaying = false;
           window.electronAPI.closeAudioWindow();
-          document.getElementById('nowPlaying').style.display = 'none';
-          console.log(`⏭️ ${nickname} skipped the current song.`);
+          el('nowPlaying').style.display = 'none';
         }
       } else {
-        const waitTime = Math.ceil((180000 - (now - lastSkip)) / 1000);
-        console.log(`⏱️ ${nickname} must wait ${waitTime}s to skip again.`);
+        console.log(`⏱️ ${nickname} must wait ${Math.ceil((180000 - (now - lastSkip)) / 1000)}s`);
       }
     }
 
-    // Handle !giveaway
-    if (commentText.toLowerCase().startsWith('!giveaway')) {
-      const match = commentText.match(/!giveaway\s+(.*)/i);
-      const giveawayName = match ? match[1].trim() : data.nickname;
-      if (giveawayName.length > 0) window.electronAPI.addToWheel(giveawayName);
+    // !giveaway
+    if (/^!giveaway/i.test(comment)) {
+      const giveawayName = comment.replace(/^!giveaway\s*/i, '').trim() || nickname;
+      window.electronAPI.addToWheel(giveawayName);
     }
 
-    // UID button
-    const uidPatterns = [
+    // UID buttons
+    [
       { game: 'Genshin Impact', regex: /\b8\d{8}\b/, region: 'Asia' },
       { game: 'Honkai: Star Rail', regex: /\b2\d{8}\b/, region: 'Asia' },
       { game: 'Zenless Zone Zero', regex: /\b13\d{8}\b/, region: 'Asia' },
-    ];
-
-    for (const { game, regex, region } of uidPatterns) {
-      const match = commentText.match(regex);
+    ].some(({ game, regex, region }) => {
+      const match = comment.match(regex);
       if (match) {
         const uid = match[0];
-        const copyUidBtn = document.createElement('button');
-        copyUidBtn.textContent = '📋';
-        copyUidBtn.className = 'copy-btn';
-        copyUidBtn.title = `Salin UID ${game} (${region})`;
-
-        copyUidBtn.onclick = async (e) => {
+        const btn = document.createElement('button');
+        btn.textContent = '📋';
+        btn.className = 'copy-btn';
+        btn.title = `Salin UID ${game} (${region})`;
+        btn.onclick = async (e) => {
           e.stopPropagation();
           try {
             await window.electronAPI.copyText(uid);
-            copyUidBtn.textContent = '✅';
-            setTimeout(() => (copyUidBtn.textContent = '📋'), 1000);
+            btn.textContent = '✅';
+            setTimeout(() => (btn.textContent = '📋'), 1000);
           } catch (err) {
             console.error('❌ Clipboard error:', err);
           }
         };
-        div.appendChild(copyUidBtn);
-        break;
+        div.appendChild(btn);
+        return true;
       }
-    }
+    });
 
-    commentList.appendChild(div);
-    while (commentList.children.length > 2) {
-      commentList.removeChild(commentList.firstChild);
-    }
-
+    commentList.append(div);
+    while (commentList.children.length > 2) commentList.removeChild(commentList.firstChild);
     commentList.scrollTop = commentList.scrollHeight;
-    commentBox.textContent = fullDisplayText;
+    commentBox.textContent = fullText;
 
-    if (commentText.toLowerCase().includes('dev')) {
-      if (lastTriggeredByDev !== data.nickname) {
-        lastTriggeredByDev = data.nickname;
-        giftVideoQueue.push({
-          nickname: data.nickname,
-          giftName: 'TikTok',
-          repeatCount: 1,
-        });
-        processGiftQueue();
-      }
+    if (/dev/i.test(comment) && lastTriggeredByDev !== nickname) {
+      lastTriggeredByDev = nickname;
+      giftVideoQueue.push({ nickname, giftName: 'TikTok', repeatCount: 1 });
+      processGiftQueue();
     }
 
     setTimeout(() => div.classList.remove('new'), 400);
   });
 
-  window.electronAPI.onNewGift(data => {
-    const gift = {
-      ...data,
-      timestamp: Date.now()
-    };
-
-    // if (isDuplicateGift(gift)) return;
-
-    lastGift = gift;
-    giftVideoQueue.push(gift);
+  // Gifts
+  window.electronAPI.onNewGift((data) => {
+    lastGift = { ...data, timestamp: Date.now() };
+    giftVideoQueue.push(lastGift);
     processGiftQueue();
     resetInteractionTimer();
   });
 
+  // Live end
   window.electronAPI.onLiveEnded(() => {
-    if (hasEnded) return; // Prevent multiple calls
+    if (hasEnded) return;
     hasEnded = true;
-
-    // Smooth fade-out
     document.body.style.transition = 'opacity 0.8s ease-in-out';
     document.body.style.opacity = '0';
-
-    // Use animation frame for smoother sync
-    requestAnimationFrame(() => {
+    requestAnimationFrame(() =>
       setTimeout(() => {
         try {
-          window.electronAPI.quitApp?.(); // Optional chaining in case it's undefined
+          window.electronAPI.quitApp?.();
         } catch (err) {
           console.error('Failed to quit app:', err);
         }
-      }, 800); // Match transition time
-    });
+      }, 800)
+    );
   });
 
+  // Popup closed
   window.electronAPI.onPopupAudioClosed(() => {
     isAudioPlaying = false;
-
-    // Remove first song from UI
-    const list = document.getElementById('songList');
-    if (list.firstChild) {
-      list.removeChild(list.firstChild);
-    }
-
-    // If no more songs, hide the "Now Playing" section
-    if (songQueue.length === 0) {
-      document.getElementById('nowPlaying').style.display = 'none';
-    }
-
-    // Play next song in queue
+    if (songListEl.firstChild) songListEl.removeChild(songListEl.firstChild);
+    if (!songQueue.length) el('nowPlaying').style.display = 'none';
     playNextSong();
   });
 
-
   console.log('👋 Renderer loaded');
 });
-
-
