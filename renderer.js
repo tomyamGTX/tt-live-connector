@@ -166,18 +166,32 @@ document.addEventListener('DOMContentLoaded', () => {
     if (/^!play\s+/i.test(comment)) {
       const query = comment.replace(/^!play\s+/i, '').trim();
       if (query) {
+        // Safety reset if audio is not actually playing
+        if (audioPlayer.paused || audioPlayer.ended) {
+          isAudioPlaying = false;
+        }
+
         window.electronAPI.searchYouTube(query).then((song) => {
           if (!song) return console.warn('Tiada hasil untuk:', query);
+
           const songDiv = document.createElement('div');
           songDiv.className = 'song-request';
           songDiv.innerHTML = `<div><strong>${shortName}</strong> minta: <span>${song.title}</span></div>`;
           songListEl.append(songDiv);
+
           songQueue.push(song);
-          if (!isAudioPlaying) playNextSong();
+
+          // Auto-play if nothing is playing
+          if (!isAudioPlaying) {
+            playNextSong();
+          }
+
+          // Limit to 5 visible requests
           while (songListEl.children.length > 5) songListEl.removeChild(songListEl.firstChild);
         });
       }
     }
+
 
     // !skip with cooldown
     if (/^!skip/i.test(comment)) {
