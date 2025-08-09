@@ -11,7 +11,6 @@ const [
 // ====== State ======
 const skipCooldowns = new Map(); // nickname -> last skip time
 const giftVideoQueue = [];
-let songQueue = [];
 let isAudioPlaying = false;
 let isVideoPlaying = false;
 let isProcessing = false;
@@ -24,6 +23,8 @@ let lastTriggeredByDev = null;
 let lastGift = null;
 let interactionTimeout;
 const uiWidth = 430;
+const songQueue = [];
+let isSongPlaying = false;
 
 // ====== Helpers ======
 const resetInteractionTimer = (timeout = 180000) => {
@@ -54,41 +55,38 @@ const cleanupAfterVideo = () => {
 };
 
 // ====== Songs ======
-function playNextSong() {
+function updateNowPlaying(title) {
+  const nowPlaying = document.getElementById('nowPlaying');
+  const currentSongTitle = document.getElementById('currentSongTitle');
+
+  if (title && title.trim() !== '') {
+    currentSongTitle.textContent = title;
+    nowPlaying.style.display = 'block';
+  } else {
+    nowPlaying.style.display = 'none';
+    currentSongTitle.textContent = '';
+  }
+}
+
+// Update the UI list of queued songs under "permintaan lagu"
+function updateSongQueueUI() {
+  songListEl.innerHTML = ''; // Clear existing list
+
   if (songQueue.length === 0) {
-    isAudioPlaying = false;
+    const emptyMsg = document.createElement('div');
+    emptyMsg.textContent = 'Tiada permintaan lagu dalam barisan.';
+    emptyMsg.className = 'empty-queue';
+    songListEl.appendChild(emptyMsg);
     return;
   }
 
-  // Remove from request list UI
-  if (songListEl.firstChild) {
-    songListEl.removeChild(songListEl.firstChild);
-  }
-
-  const song = songQueue.shift();
-  isAudioPlaying = true;
-
-  audioPlayer.src = song.url;
-  audioPlayer.volume = 0.5;
-  audioPlayer.play()
-    .then(() => {
-      el('nowPlaying').textContent = `🎵 Now playing: ${song.title}`;
-      el('nowPlaying').style.display = 'block';
-    })
-    .catch(err => {
-      console.error("❌ Audio play error:", err);
-      isAudioPlaying = false;
-      playNextSong();
-    });
+  songQueue.forEach(({ query, nickname }, index) => {
+    const item = document.createElement('div');
+    item.className = 'queue-item';
+    item.textContent = `${index + 1}. ${query} — oleh ${nickname}`;
+    songListEl.appendChild(item);
+  });
 }
-
-
-audioPlayer.addEventListener('ended', () => {
-  isAudioPlaying = false;
-  el('nowPlaying').style.display = 'none';
-  playNextSong();
-});
-
 
 // ====== Gifts ======
 function processGiftQueue() {
@@ -175,62 +173,26 @@ document.addEventListener('DOMContentLoaded', () => {
     div.title = `${nickname}: ${comment}`;
     div.innerHTML = `<span>${fullText}</span>`;
 
-    // !play
-    if (/^!play\s+/i.test(comment)) {
-      const query = comment.replace(/^!play\s+/i, '').trim();
+    // Check if comment starts with "!play "
+    const playCmd = /^!play\s+(.+)/i.exec(comment);
+
+    if (playCmd) {
+      const query = playCmd[1].trim();
       if (query) {
-        if (audioPlayer.paused || audioPlayer.ended) {
-          isAudioPlaying = false;
-        }
-
-        window.electronAPI.searchYouTube(query).then(async (song) => {
-          if (!song) return console.warn('Tiada hasil untuk:', query);
-
-          const streamUrl = await window.electronAPI.getAudioStream(song.url);
-          if (!streamUrl) return console.error("❌ Failed to get stream URL");
-
-          const songDiv = document.createElement('div');
-          songDiv.className = 'song-request';
-          songDiv.innerHTML = `<div><strong>${shortName}</strong> minta: <span>${song.title}</span></div>`;
-          songListEl.append(songDiv);
-
-          songQueue.push({ ...song, url: streamUrl });
-
-          if (!isAudioPlaying) {
-            playNextSong();
-          }
-
-          while (songListEl.children.length > 5) {
-            songListEl.removeChild(songListEl.firstChild);
-          }
-        });
-      }
-    }
-
-
-
-
-    // !skip with cooldown
-    if (/^!skip/i.test(comment)) {
-      const lastSkip = skipCooldowns.get(nickname) || 0;
-      const now = Date.now();
-
-      if (now - lastSkip >= 5000) { // 5s cooldown
-        skipCooldowns.set(nickname, now);
-
-        if (isAudioPlaying) {
-          isAudioPlaying = false;
-          songQueue.shift(); // remove current song
-          window.electronAPI.closeAudioWindow();
-          el('nowPlaying').style.display = 'none';
+        songQueue.push({ query, nickname });
+        updateSongQueueUI(); // update UI
+        if (!isSongPlaying) {
           playNextSong();
         }
-      } else {
-        console.log(`⏳ Skip cooldown active for ${nickname}`);
+        updateNowPlaying(query);
       }
     }
 
-
+    if (/^!skip/i.test(comment)) {
+      if (isSongPlaying) {
+        window.electronAPI.skipSong();
+      }
+    }
 
     // !giveaway
     if (/^!giveaway/i.test(comment)) {
@@ -280,6 +242,27 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => div.classList.remove('new'), 400);
   });
 
+  function playNextSong() {
+    if (songQueue.length === 0) {
+      isSongPlaying = false;
+      updateNowPlaying('');
+      updateSongQueueUI(); // update UI to clear queue display
+      return;
+    }
+
+    const { query, nickname } = songQueue.shift();
+    updateSongQueueUI(); // update UI after removing from queue
+
+    isSongPlaying = true;
+    window.electronAPI.playSong(query, nickname);
+    updateNowPlaying(query);
+  }
+
+  window.electronAPI.onSongEnded(() => {
+    isSongPlaying = false;
+    playNextSong();
+  });
+
   // Gifts
   window.electronAPI.onNewGift((data) => {
     lastGift = { ...data, timestamp: Date.now() };
@@ -288,6 +271,17 @@ document.addEventListener('DOMContentLoaded', () => {
     resetInteractionTimer();
   });
 
+  //no song
+  window.electronAPI.onNoSongResult(({ query, nickname }) => {
+    // Show a message in your UI or log it
+    console.log(`No video found for "${query}" requested by ${nickname}`);
+
+    // Optionally, show a toast or UI notification here
+
+    // Skip to next song if you want:
+    isSongPlaying = false;
+    playNextSong();
+  });
   // Live end
   window.electronAPI.onLiveEnded(() => {
     if (hasEnded) return;
@@ -304,14 +298,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 800)
     );
   });
-
-  // Popup closed
-  window.electronAPI.onPopupAudioClosed(() => {
-    isAudioPlaying = false;
-    if (songListEl.firstChild) songListEl.removeChild(songListEl.firstChild);
-    playNextSong(); // always try to resume
-  });
-
 
   console.log('👋 Renderer loaded');
 });

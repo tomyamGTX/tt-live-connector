@@ -1,12 +1,21 @@
 // ✅ preload.js
 const { contextBridge, ipcRenderer, clipboard } = require('electron');
 const ytSearch = require('yt-search');
+let noSongResultCallback = null;
+
 // 🧠 Listen for 'add-name' from main process and re-dispatch to frontend
 ipcRenderer.on('add-name', (_, name) => {
   window.dispatchEvent(new CustomEvent('add-name', { detail: name }));
 });
 ipcRenderer.on('update-audio', (_, data) => {
   window.dispatchEvent(new CustomEvent('update-audio', { detail: data }));
+});
+
+
+ipcRenderer.on('no-song-result', (event, data) => {
+  if (typeof noSongResultCallback === 'function') {
+    noSongResultCallback(data);
+  }
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -31,6 +40,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onAddName: (callback) => {
     window.addEventListener('add-name', (e) => callback(null, e.detail));
   },
+  playSong: (query, nickname) => ipcRenderer.send('play-song', { query, nickname }),
+  onSongEnded: (callback) => ipcRenderer.on('song-ended', callback),
+  skipSong: () => ipcRenderer.send('skip-song'),
+  onNoSongResult: (callback) => {
+    noSongResultCallback = callback;
+  },
   searchYouTube: async (query) => {
     const result = await ytSearch(query);
     if (result && result.videos.length > 0) {
@@ -38,11 +53,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
     return null;
   },
-  getAudioStream: (url) => ipcRenderer.invoke('getAudioStream', url),
-  openAudioWindow: (title, audioUrl) =>
-    ipcRenderer.send('open-audio-window', { title, audioUrl }),
- closeAudioWindow: () => ipcRenderer.send('close-audio-window'),
-  onPopupAudioClosed: (callback) => ipcRenderer.on('popup-audio-closed', callback),
-  minimizeSelf: () => ipcRenderer.send('minimize-audio-popup'),
-
 });

@@ -1,91 +1,83 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>YouTube Player</title>
-    <style>
-        html,
-        body {
-            margin: 0;
-            background: black;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #player {
-            width: 100%;
-            height: 100%;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>YouTube Player</title>
+  <style>
+    html, body {
+      margin: 0; 
+      padding: 0; 
+      height: 100%; 
+      background: black;
+      overflow: hidden;
+      display: flex; 
+      justify-content: center; 
+      align-items: center;
+    }
+    #player {
+      width: 100%;
+      height: 100%;
+      max-width: 480px;
+      max-height: 270px; /* 16:9 aspect ratio */
+    }
+  </style>
 </head>
-
 <body>
-    <div id="player"></div>
+  <div id="player"></div>
 
-    <script>
-        const params = new URLSearchParams(location.search);
-        const videoId = params.get('v');
+  <script>
+    // Parse URL params
+    const params = new URLSearchParams(window.location.search);
+    const videoId = params.get('v');
+    const duration = parseInt(params.get('dur'), 10) || 0;
 
-        const tag = document.createElement('script');
-        tag.src = "https://www.youtube.com/iframe_api";
-        document.body.appendChild(tag);
+    if (!videoId) {
+      document.body.innerHTML = '<p style="color:white;">No video ID provided.</p>';
+    } else {
+      // Load YouTube IFrame Player API script
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(tag);
 
-        let player;
-        function onYouTubeIframeAPIReady() {
-            player = new YT.Player('player', {
-                videoId: videoId,
-                playerVars: {
-                    autoplay: 1,
-                    mute: 0,
-                    rel: 0,
-                    modestbranding: 1
-                },
-                events: {
-                    'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange,
-                    'onError': onPlayerError
-                }
-            });
-        }
+      let player;
 
-        function onPlayerReady(event) {
-            player.setVolume(20); // adjust this value as needed
-        }
-
-        function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.ENDED) {
+      // YouTube API ready callback
+      function onYouTubeIframeAPIReady() {
+        player = new YT.Player('player', {
+          videoId: videoId,
+          playerVars: {
+            autoplay: 1,
+            controls: 1,
+            modestbranding: 1,
+            rel: 0,
+            showinfo: 0,
+            iv_load_policy: 3,
+            fs: 0,
+            origin: window.location.origin,
+          },
+          events: {
+            onReady: (event) => {
+              event.target.playVideo();
+              if (duration > 0) {
+                setTimeout(() => {
+                  event.target.stopVideo();
+                  window.close();  // Auto-close after duration ends
+                }, duration * 1000);
+              }
+            },
+            onStateChange: (event) => {
+              // Optional: close window when video ends
+              if (event.data === YT.PlayerState.ENDED) {
                 window.close();
+              }
             }
-        }
+          }
+        });
+      }
 
-        function onPlayerError(event) {
-            console.warn('❌ YouTube Player Error:', event.data);
-            const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-            window.open(
-                videoUrl,
-                '_blank',
-                'width=480,height=300,top=10,left=20'
-            );
-
-            // Try minimizing the window (via Electron IPC)
-            if (window.electronAPI && window.electronAPI.minimizeSelf) {
-                window.electronAPI.minimizeSelf(); // requires preload-exposed function
-            }
-
-            // Try to get fallback duration from query string (if passed from Electron)
-            const params = new URLSearchParams(window.location.search);
-            const fallbackDuration = parseInt(params.get('dur') || '240', 10); // seconds
-
-            // Close window after fallbackDuration + 10s (to account for ads)
-            setTimeout(() => window.close(), (fallbackDuration + 10) * 1000);
-        }
-
-
-        window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
-    </script>
+      // Attach API ready to window (required by YouTube API)
+      window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+    }
+  </script>
 </body>
-
 </html>

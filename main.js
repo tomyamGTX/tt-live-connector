@@ -1,12 +1,15 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const youtubedl = require('youtube-dl-exec');
 const ytSearch = require('yt-search');
+
 let overlayWindow;
 let promptWindow;
 let wheelWindow;
 let giveawayNames = new Set();
 let currentAudioWindow = null;
+
+
+
 
 function createPromptWindow() {
   promptWindow = new BrowserWindow({
@@ -31,23 +34,23 @@ function createOverlayWindow(username) {
     height: 450,
     x: 1150,
     y: 15,
-    frame: false, titleBarStyle: 'hidden',   // ✅ Optional: hides macOS titlebar styling
+    frame: false,
+    titleBarStyle: 'hidden',
     transparent: true,
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: true,
-    focusable: false, // ✅ MUST be false
+    focusable: false,
     hasShadow: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       sandbox: false,
-      autoplayPolicy: 'no-user-gesture-required'  // ✅ Add this
-    }
+      autoplayPolicy: 'no-user-gesture-required',
+    },
   });
   overlayWindow.setAlwaysOnTop(true, 'screen-saver');
   overlayWindow.loadFile('index.html');
-
 
   overlayWindow.webContents.once('did-finish-load', () => {
     try {
@@ -61,7 +64,7 @@ function createOverlayWindow(username) {
 
 function openWheelWindow() {
   if (wheelWindow) {
-    wheelWindow.show(); // in case it was hidden
+    wheelWindow.show();
     return;
   }
 
@@ -82,22 +85,86 @@ function openWheelWindow() {
   wheelWindow.loadFile('wheel.html');
 
   wheelWindow.on('closed', () => {
-    wheelWindow = null; // ✅ this is required
+    wheelWindow = null;
   });
 
-  // Send names once loaded
   wheelWindow.webContents.once('did-finish-load', () => {
-    giveawayNames.forEach(name => {
+    giveawayNames.forEach((name) => {
       wheelWindow.webContents.send('add-name', name);
     });
   });
 }
 
-
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 app.whenReady().then(() => {
   createPromptWindow();
+});
+
+ipcMain.on('play-song', async (event, { query, nickname }) => {
+  try {
+    const result = await ytSearch(query);
+    if (!result || result.videos.length === 0) {
+      console.log(`No results for: ${query}`);
+
+      // Notify renderer that no result was found
+      if (overlayWindow && !overlayWindow.isDestroyed()) {
+        overlayWindow.webContents.send('no-song-result', { query, nickname });
+      }
+
+      return;
+    }
+
+    const video = result.videos[0];
+
+    // Close previous audio window if exists
+    if (currentAudioWindow && !currentAudioWindow.isDestroyed()) {
+      currentAudioWindow.close();
+    }
+
+    currentAudioWindow = new BrowserWindow({
+      width: 480,
+      height: 300,
+      alwaysOnTop: true,
+      resizable: false,
+      title: `Playing for ${nickname}: ${video.title}`,
+      webPreferences: {
+        contextIsolation: true,
+      },
+    });
+
+    currentAudioWindow.loadFile(path.join(__dirname, 'youtube-player.html'), {
+      query: {
+        v: video.videoId,
+        dur: video.seconds,
+      },
+    });
+
+    currentAudioWindow.on('closed', () => {
+      currentAudioWindow = null;
+      if (overlayWindow && !overlayWindow.isDestroyed()) {
+        overlayWindow.webContents.send('song-ended');
+      }
+    });
+
+    currentAudioWindow.once('ready-to-show', () => {
+      setTimeout(() => {
+        if (currentAudioWindow && !currentAudioWindow.isDestroyed()) {
+          currentAudioWindow.minimize();
+        }
+      }, 1000);
+    });
+  } catch (error) {
+    console.error('Error playing song:', error);
+  }
+});
+
+
+
+ipcMain.on('skip-song', () => {
+  if (currentAudioWindow && !currentAudioWindow.isDestroyed()) {
+    currentAudioWindow.close();
+  }
 });
 
 ipcMain.on('minimize-main', () => {
@@ -111,6 +178,7 @@ ipcMain.on('show-main', () => {
     overlayWindow.show();
   }
 });
+
 ipcMain.on('username-submitted', (event, username) => {
   if (promptWindow) promptWindow.close();
   createOverlayWindow(username);
@@ -133,17 +201,20 @@ ipcMain.on('resize-window-to-video', (event, width, height) => {
 ipcMain.on('set-ignore-mouse-events', (event, ignore) => {
   if (overlayWindow) {
     overlayWindow.setIgnoreMouseEvents(ignore, { forward: true });
-    console.log(`🔁 Mouse events ${ignore ? 'ignored (click-through)' : 'accepted'} on overlay`);
+    console.log(
+      `🔁 Mouse events ${ignore ? 'ignored (click-through)' : 'accepted'} on overlay`
+    );
   } else {
     console.warn('❌ No overlay window to apply ignoreMouseEvents');
   }
 });
 
 ipcMain.on('add-to-wheel', (event, name) => {
-  openWheelWindow(); // Will .show() again if minimized
+  openWheelWindow();
   if (wheelWindow) {
     wheelWindow.webContents.send('add-name', name);
   }
+  giveawayNames.add(name);
 });
 
 ipcMain.on('reset-wheel', () => {
@@ -162,104 +233,6 @@ ipcMain.on('minimize-wheel', () => {
 ipcMain.handle('is-wheel-visible', () => {
   return !!wheelWindow && !wheelWindow.isDestroyed() && wheelWindow.isVisible();
 });
-
-ipcMain.handle('getAudioStream', async (event, url) => {
-  try {
-    const output = await youtubedl(url, {
-      dumpSingleJson: true,
-      noWarnings: true,
-      preferFreeFormats: true,
-      addHeader: ['referer:youtube.com', 'user-agent:googlebot'],
-    });
-
-    const audioFormat = output.formats.find(f => f.asr && f.ext === 'm4a');
-    return audioFormat?.url || null;
-  } catch (err) {
-    console.error('❌ youtube-dl failed:', err);
-    return null;
-  }
-});
-
-ipcMain.on('open-audio-window', async (event, { title }) => {
-  if (currentAudioWindow && !currentAudioWindow.isDestroyed()) {
-    currentAudioWindow.close(); // ensure only one audio window
-  }
-
-  currentAudioWindow = new BrowserWindow({
-    width: 480,
-    height: 300,
-    alwaysOnTop: true,
-    resizable: false,
-    title: `Now Playing: ${title}`,
-    webPreferences: {
-      contextIsolation: true,
-    },
-  });
-
-  async function trySearch(term) {
-    const result = await ytSearch(term);
-    const video = result.videos.find(v => v.videoId && v.seconds > 0 && !v.live);
-    return video || null;
-  }
-
-  try {
-    let video = await trySearch(title);
-
-    // If no valid result, try fallback
-    if (!video) {
-      console.warn(`⚠️ Primary search failed for: ${title}. Trying fallback...`);
-      video = await trySearch(title + ' audio');
-    }
-
-    if (!video) {
-      console.warn(`❌ No playable video found for: ${title}`);
-      currentAudioWindow.close(); // ⛔ Close the window instead of showing message
-      return;
-    }
-
-    const playerPath = path.join(__dirname, 'youtube-player.html');
-    currentAudioWindow.loadFile(playerPath, {
-      query: {
-        v: video.videoId,
-        dur: video.seconds  // Pass video duration to renderer
-      }
-    });
-
-
-    // 🔽 Auto-minimize after loading and delay
-    currentAudioWindow.webContents.once('did-finish-load', () => {
-      setTimeout(() => {
-        if (currentAudioWindow && !currentAudioWindow.isDestroyed()) {
-          currentAudioWindow.minimize();
-        }
-      }, 3000); // ⏱️ 3 seconds delay (adjust as needed)
-    });
-
-    currentAudioWindow.on('closed', () => {
-      currentAudioWindow = null;
-      overlayWindow?.webContents.send('popup-audio-closed');
-    });
-
-  } catch (err) {
-    console.error('❌ YouTube search threw error:', err);
-    currentAudioWindow.close(); // ⛔ Close window on error too
-  }
-});
-
-
-ipcMain.on('minimize-audio-popup', () => {
-  if (currentAudioWindow && !currentAudioWindow.isDestroyed()) {
-    currentAudioWindow.minimize();
-  }
-});
-
-ipcMain.on('close-audio-window', () => {
-  if (currentAudioWindow && !currentAudioWindow.isDestroyed()) {
-    currentAudioWindow.close();
-    currentAudioWindow = null;
-  }
-});
-
 
 ipcMain.on('quit-app', () => {
   app.quit();
